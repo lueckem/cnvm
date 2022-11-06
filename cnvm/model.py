@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-from numba import njit, int64
+from numba import njit
 from numba.typed import List
 from typing import Optional
 
@@ -84,24 +84,6 @@ class CNVM:
 
         return np.array(t_traj), np.array(x_traj, dtype=int)
 
-    def calc_aggregated_traj(self, x_traj: np.ndarray, normalize: bool = False) -> np.ndarray:
-        """
-        Return the aggregated traj containing opinions counts/ percentages.
-
-        Parameters
-        ----------
-        x_traj : np.ndarray
-        normalize : bool, optional
-
-        Returns
-        -------
-        np.ndarray
-        """
-        x_agg = _aggregate_traj_numba(x_traj, self.params.num_opinions)
-        if normalize:
-            x_agg /= self.params.num_agents
-        return x_agg
-
 
 @njit
 def _simulate_numba(x, t_delta, next_event_rate, noise_probability, t_max, num_agents, num_opinions,
@@ -169,13 +151,3 @@ def _simulate_numba_complete_network(x, t_delta, next_event_rate, noise_probabil
         t = next_t
 
     return t_traj, x_traj
-
-
-@njit
-def _aggregate_traj_numba(x_traj, num_opinions):
-    x_agg = np.zeros((x_traj.shape[0], num_opinions))
-    for i in range(x_traj.shape[0]):
-        this_x_agg = np.bincount(x_traj[i, :])
-        x_agg[i, :] = np.concatenate((this_x_agg, np.zeros(num_opinions - this_x_agg.shape[0], dtype=int64)))
-    # x_agg = np.concatenate((x_agg, np.zeros(num_types - len(x_agg), dtype=int64)))
-    return x_agg
