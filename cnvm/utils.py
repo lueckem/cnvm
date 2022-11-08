@@ -9,7 +9,7 @@ from cnvm.collective_variables import CollectiveVariable
 
 
 def sample_many_runs(params: Parameters,
-                     x_init: np.ndarray,
+                     initial_states: np.ndarray,
                      t_max: float,
                      num_timesteps: int,
                      num_runs: int,
@@ -22,8 +22,9 @@ def sample_many_runs(params: Parameters,
     ----------
     params : Parameters
         If a NetworkGenerator is used, a new network will be sampled for every run.
-    x_init : np.ndarray
-        Initial state.
+    initial_states : np.ndarray
+        Array of initial states, shape = (num_initial_states, num_agents).
+        Num_runs simulations will be executed for each initial state.
     t_max : float
         End time.
     num_timesteps : int
@@ -38,53 +39,65 @@ def sample_many_runs(params: Parameters,
 
     Returns
     -------
-    t_out : np.ndarray
-        time points, shape = (num_timesteps,)
-    x_out : np.ndarray
-        trajectories, shape = (num_runs, num_timesteps, num_agents)
-
+    t_out, x_out : tuple[np.ndarray, np.ndarray]
+        (t_out, x_out), time_out.shape = (num_timesteps,),
+        x_out.shape = (num_initial_states, num_runs, num_timesteps, num_agents)
     """
     t_out = np.linspace(0, t_max, num_timesteps)
 
+    # no multiprocessing
     if n_jobs is None:
-        x_out = _sample_many_runs_subprocess(params, x_init, t_max, num_timesteps, num_runs, collective_variable)
+        x_out = _sample_many_runs_subprocess(params, initial_states, t_max, num_timesteps, num_runs,
+                                             collective_variable)
         return t_out, x_out
 
-    else:
-        if n_jobs == -1:
-            n_jobs = mp.cpu_count()
+    # multiprocessing
+    if n_jobs == -1:
+        n_jobs = mp.cpu_count()
 
+    if initial_states.shape[0] == 1:  # parallelization along num_runs
         num_runs_per_process = int(np.ceil(num_runs / n_jobs))
         with mp.Pool(n_jobs) as pool:
             x_out = pool.starmap(_sample_many_runs_subprocess,
-                                 [(params, x_init, t_max, num_timesteps, num_runs_per_process,
+                                 [(params, initial_states, t_max, num_timesteps, num_runs_per_process,
                                    collective_variable)] * n_jobs)
-            x_out = np.concatenate(x_out, axis=0)
+            x_out = np.concatenate(x_out, axis=1)
             return t_out, x_out
+
+    # parallelization along num_initial states
+    initial_states_subprocesses = np.array_split(initial_states, n_jobs)
+    with mp.Pool(n_jobs) as pool:
+        x_out = pool.starmap(_sample_many_runs_subprocess,
+                             [(params, initial_states_subprocesses[i], t_max, num_timesteps, num_runs,
+                               collective_variable) for i in range(n_jobs)])
+        x_out = np.concatenate(x_out, axis=0)
+        return t_out, x_out
 
 
 def _sample_many_runs_subprocess(params: Parameters,
-                                 x_init: np.ndarray,
+                                 initial_states: np.ndarray,
                                  t_max: float,
                                  num_timesteps: int,
                                  num_runs: int,
                                  collective_variable: CollectiveVariable = None) -> np.ndarray:
     t_out = np.linspace(0, t_max, num_timesteps)
+    num_initial_states = initial_states.shape[0]
     model = CNVM(params)
     if collective_variable is None:
-        x_out = np.zeros((num_runs, num_timesteps, model.params.num_agents))
+        x_out = np.zeros((num_initial_states, num_runs, num_timesteps, model.params.num_agents))
     else:
-        x_out = np.zeros((num_runs, num_timesteps, collective_variable.dimension))
+        x_out = np.zeros((num_initial_states, num_runs, num_timesteps, collective_variable.dimension))
 
-    for i in range(num_runs):
-        if model.params.network_generator is not None:
-            model.update_network()
-        t, x = model.simulate(t_max, len_output=4 * num_timesteps, x_init=x_init)
-        t_ind = argmatch(t_out, t)
-        if collective_variable is None:
-            x_out[i, :, :] = x[t_ind, :]
-        else:
-            x_out[i, :, :] = collective_variable(x[t_ind, :])
+    for j in range(num_initial_states):
+        for i in range(num_runs):
+            if model.params.network_generator is not None:
+                model.update_network()
+            t, x = model.simulate(t_max, len_output=4 * num_timesteps, x_init=initial_states[j])
+            t_ind = argmatch(t_out, t)
+            if collective_variable is None:
+                x_out[j, i, :, :] = x[t_ind, :]
+            else:
+                x_out[j, i, :, :] = collective_variable(x[t_ind, :])
     return x_out
 
 
@@ -96,6 +109,18 @@ def calc_rre_traj(params: Parameters,
     Solve the RRE given parameters, starting from c_0, up to time t_max.
 
     Outputs timepoints (shape=(?,)) and c (shape=(?, num_opinions)).
+
+    Parameters
+    ----------
+    params : Parameters
+    c_0 : np.ndarray
+    t_max : float
+    t_eval : np.ndarray, optional
+
+    Returns
+    -------
+    timepoints : np.ndarray
+    c : np.ndarray
     """
 
     def rhs(t, c):
