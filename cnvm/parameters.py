@@ -58,6 +58,34 @@ class Parameters:
         self.network = network
         self.num_agents = len(network.nodes)
 
+    def save_as_textfile(self, filename: str):
+        """
+        Save parameters as readable .txt file.
+
+        Parameters
+        ----------
+        filename
+        """
+        if filename[-4:] != ".txt":
+            this_filename = filename + ".txt"
+        else:
+            this_filename = filename
+
+        with open(this_filename, "w") as f:
+            f.write(f"num_agents = {self.num_agents}\n")
+            f.write(f"num_opinions = {self.num_opinions}\n")
+            f.write(f"r_imit = {self.r_imit}\n")
+            f.write(f"r_noise = {self.r_noise}\n\n")
+            f.write(f"prob_imit =\n {self.prob_imit}\n\n")
+            f.write(f"prob_noise =\n {self.prob_noise}\n\n")
+
+            if self.network_generator is not None:
+                f.write(f"network_generator = {self.network_generator}\n")
+            elif self.network is not None:
+                f.write(f"network = {self.network}\n")
+            else:
+                f.write(f"network = fully connected\n")
+
 
 def convert_rate_to_cnvm(r: np.ndarray, r_tilde: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray]:
     """
