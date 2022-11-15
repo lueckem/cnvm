@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import networkx as nx
 import numpy as np
+import pickle
 
 from cnvm.network_generator import NetworkGenerator
 
@@ -85,6 +86,16 @@ class Parameters:
                 f.write(f"network = {self.network}\n")
             else:
                 f.write(f"network = fully connected\n")
+
+
+def save_params(filename: str, params: Parameters):
+    with open(filename, "wb") as file:
+        pickle.dump(params, file)
+
+
+def load_params(filename: str) -> Parameters:
+    with open(filename, "rb") as file:
+        return pickle.load(file)
 
 
 def convert_rate_to_cnvm(r: np.ndarray, r_tilde: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray]:
