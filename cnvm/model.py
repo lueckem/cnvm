@@ -94,7 +94,7 @@ def _simulate_numba(x, t_delta, next_event_rate, noise_probability, t_max, num_a
 
     t_store = t_delta
     while t < t_max:
-        next_t = t + np.random.exponential(next_event_rate)  # time of next event
+        t += np.random.exponential(next_event_rate)  # time of next event
         agent = np.random.randint(0, num_agents)  # agent of next event
         noise = True if np.random.random() < noise_probability else False
 
@@ -113,8 +113,7 @@ def _simulate_numba(x, t_delta, next_event_rate, noise_probability, t_max, num_a
         if t >= t_store:
             t_store += t_delta
             x_traj.append(x.copy())
-            t_traj.append(next_t)
-        t = next_t
+            t_traj.append(t)
 
     return t_traj, x_traj
 
@@ -128,7 +127,7 @@ def _simulate_numba_complete_network(x, t_delta, next_event_rate, noise_probabil
 
     t_store = t_delta
     while t < t_max:
-        next_t = t + np.random.exponential(next_event_rate)  # time of next event
+        t += np.random.exponential(next_event_rate)  # time of next event
         agent = np.random.randint(0, num_agents)  # agent of next event
         noise = True if np.random.random() < noise_probability else False
 
@@ -147,7 +146,6 @@ def _simulate_numba_complete_network(x, t_delta, next_event_rate, noise_probabil
         if t >= t_store:
             t_store += t_delta
             x_traj.append(x.copy())
-            t_traj.append(next_t)
-        t = next_t
+            t_traj.append(t)
 
     return t_traj, x_traj
