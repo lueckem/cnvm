@@ -48,7 +48,7 @@ class OpinionShares:
         """
         num_agents = x_traj.shape[1]
 
-        x_agg = _opinion_shares_numba(x_traj, self.dimension)
+        x_agg = _opinion_shares_numba(x_traj.astype(int), self.dimension)
         if self.normalize:
             x_agg /= num_agents
         return x_agg
