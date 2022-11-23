@@ -62,6 +62,7 @@ def sample_many_runs(params: Parameters,
                                  [(params, initial_states, t_max, num_timesteps, num_runs_per_process,
                                    collective_variable)] * n_jobs)
             x_out = np.concatenate(x_out, axis=1)
+            x_out = x_out[:, :num_runs, :, :]
             return t_out, x_out
 
     # parallelization along num_initial states
