@@ -228,7 +228,7 @@ def animate_traj_on_network(network: nx.Graph,
     pos = nx.spring_layout(network, seed=100)
     num_opinions = np.max(x)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(14, 14))
 
     def update(t_step):
         colors = x[t_step] / num_opinions
