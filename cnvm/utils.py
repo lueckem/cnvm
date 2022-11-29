@@ -1,7 +1,11 @@
+import networkx as nx
 import numpy as np
 from numba import njit
 from scipy.integrate import solve_ivp
 import multiprocessing as mp
+from matplotlib import pyplot as plt
+import matplotlib.animation
+import matplotlib.axes
 
 from cnvm.parameters import Parameters
 from cnvm.model import CNVM
@@ -182,3 +186,58 @@ def argmatch(x_ref, x):
         ref_ind += 1
 
     return out
+
+
+def plot_state_on_network(network: nx.Graph, x: np.ndarray, ax: matplotlib.axes.Axes) -> None:
+    """
+    Draw the state x on a network on a given matplotlib axes.
+
+    Parameters
+    ----------
+    network : nx.Graph
+    x : np.ndarray
+    ax : matplotlib.axes.Axes
+    """
+    cmap = "brg"
+    colors = x / np.max(x)
+    pos = nx.spring_layout(network, seed=100)
+    nx.draw(network, pos=pos, ax=ax, node_color=colors, cmap=cmap)
+
+
+def animate_traj_on_network(network: nx.Graph,
+                            x: np.ndarray,
+                            filename: str,
+                            t: np.ndarray = None,
+                            animation_duration: float = 20) -> None:
+    """
+    Create .gif animation of trajectory x on a network and save under filename.
+
+    Parameters
+    ----------
+    network : nx.Graph
+    x : np.ndarray
+        shape = (num_timesteps, num_agents)
+    filename : str
+    t : np.ndarray, optional
+    animation_duration : float, optional
+    """
+    if t is None:
+        t = np.arange(x.shape[0])
+
+    cmap = "brg"
+    pos = nx.spring_layout(network, seed=100)
+    num_opinions = np.max(x)
+
+    fig, ax = plt.subplots()
+
+    def update(t_step):
+        colors = x[t_step] / num_opinions
+        ax.clear()
+        nx.draw(network, pos=pos, ax=ax, node_color=colors, cmap=cmap, vmin=0, vmax=1)
+        ax.set_title(f"t = {np.round(t[t_step], 2)}")
+
+    interval = animation_duration / x.shape[0]
+    anim = matplotlib.animation.FuncAnimation(fig, update, frames=x.shape[0], interval=interval * 1000)
+
+    writergif = matplotlib.animation.PillowWriter(fps=int(1/interval))
+    anim.save(filename, writer=writergif)
