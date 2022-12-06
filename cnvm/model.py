@@ -1,3 +1,4 @@
+from __future__ import annotations
 import networkx as nx
 import numpy as np
 from numba import njit
@@ -43,6 +44,28 @@ class CNVM:
             self.neighbor_list.append(np.array(list(self.params.network.neighbors(i)), dtype=int))
 
         self.next_event_rate = 1 / (self.params.num_agents * (self.params.r_imit + self.params.r_noise))
+
+    def update_rates(self, r_imit: float = None,
+                     r_noise: float = None,
+                     prob_imit: float | np.ndarray = None,
+                     prob_noise: float | np.ndarray = None):
+        if r_imit is not None:
+            self.params.r_imit = r_imit
+        if r_noise is not None:
+            self.params.r_noise = r_noise
+        if prob_imit is not None:
+            if isinstance(prob_imit, (float, int)):
+                self.params.prob_imit = prob_imit * np.ones((self.params.num_opinions, self.params.num_opinions))
+            else:
+                self.params.prob_imit = prob_imit
+        if prob_noise is not None:
+            if isinstance(prob_noise, (float, int)):
+                self.params.prob_noise = prob_noise * np.ones((self.params.num_opinions, self.params.num_opinions))
+            else:
+                self.params.prob_noise = prob_noise
+
+        self.next_event_rate = 1 / (self.params.num_agents * (self.params.r_imit + self.params.r_noise))
+        self.noise_probability = self.params.r_noise / (self.params.r_imit + self.params.r_noise)
 
     def simulate(self,
                  t_max: float,
