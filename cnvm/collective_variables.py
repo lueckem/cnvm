@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Union
 
 import networkx as nx
 import numpy as np
@@ -25,7 +25,10 @@ class CollectiveVariable(Protocol):
 
 
 class OpinionShares:
-    def __init__(self, num_opinions, normalize: bool = False, weights: np.ndarray = None):
+    def __init__(self, num_opinions,
+                 normalize: bool = False,
+                 weights: np.ndarray = None,
+                 idx_to_return: Union[int, np.ndarray] = None):
         """
         Calculate the opinion counts/ percentages.
 
@@ -34,12 +37,24 @@ class OpinionShares:
         num_opinions : int
         normalize : bool, optional
             If true return percentages, else counts.
-        weights: np.ndarray, optional
-            weight for each agent's opinion, shape=(num_agents,). Default: Each agent has weight 1.
+        weights : np.ndarray, optional
+            Weight for each agent's opinion, shape=(num_agents,). Default: Each agent has weight 1.
+            Negative weights are allowed.
+        idx_to_return : Union[int, np.ndarray], optional
+            Shares of which opinions to return. Default: all opinions.
         """
-        self.dimension = num_opinions
+        self.num_opinions = num_opinions
         self.normalize = normalize
         self.weights = weights
+
+        if idx_to_return is None:
+            self.idx_to_return = np.arange(num_opinions)
+        elif isinstance(idx_to_return, int):
+            self.idx_to_return = np.array([idx_to_return])
+        else:
+            self.idx_to_return = idx_to_return
+
+        self.dimension = len(self.idx_to_return)
 
     def __call__(self, x_traj: np.ndarray) -> np.ndarray:
         """
@@ -54,13 +69,14 @@ class OpinionShares:
             trajectory projected down via the collective variable, shape = (?, self.dimension)
         """
         num_agents = x_traj.shape[1]
-        x_agg = _opinion_shares_numba(x_traj.astype(int), self.dimension, self.weights)
+        x_agg = _opinion_shares_numba(x_traj.astype(int), self.num_opinions, self.weights)
+        x_agg = x_agg[:, self.idx_to_return]
 
         if self.normalize:
             if self.weights is None:
                 x_agg /= num_agents
             else:
-                x_agg /= np.sum(self.weights)
+                x_agg /= np.sum(np.abs(self.weights))
         return x_agg
 
 
