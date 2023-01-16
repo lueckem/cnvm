@@ -80,6 +80,26 @@ class OpinionShares:
         return x_agg
 
 
+class CompositeCollectiveVariable:
+    def __init__(self, collective_variables: list[CollectiveVariable]):
+        self.collective_variables = collective_variables
+        self.dimension = sum([cv.dimension for cv in collective_variables])
+
+    def __call__(self, x_traj: np.ndarray) -> np.ndarray:
+        """
+        Parameters
+        ----------
+        x_traj : np.ndarray
+            trajectory of CNVM, shape = (?, num_agents).
+
+        Returns
+        -------
+        np.ndarray
+            trajectory projected down via the collective variable, shape = (?, self.dimension)
+        """
+        return np.concatenate([cv(x_traj) for cv in self.collective_variables], axis=1)
+
+
 class Interfaces:
     def __init__(self, network: nx.Graph, normalize: bool = False):
         self.dimension = 1
