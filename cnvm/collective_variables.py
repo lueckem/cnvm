@@ -84,6 +84,7 @@ class OpinionSharesByDegree:
     def __init__(self,
                  num_opinions: int,
                  network: nx.Graph,
+                 normalize: bool = False,
                  idx_to_return: Union[int, np.ndarray] = None):
         """
         Calculate the count of each opinion by degree.
@@ -95,12 +96,15 @@ class OpinionSharesByDegree:
         ----------
         num_opinions : int
         network : nx.Graph
+        normalize : bool, optional
+            If true return percentages, else counts.
         idx_to_return : Union[int, np.ndarray], optional
             Shares of which opinions to return. Default: all opinions.
         """
         self.degrees_of_nodes = np.array([d for _, d in network.degree()])
         self.degrees = np.sort(np.unique(self.degrees_of_nodes))
         self.num_opinions = num_opinions
+        self.normalize = normalize
 
         if idx_to_return is None:
             self.idx_to_return = np.arange(num_opinions)
@@ -132,6 +136,8 @@ class OpinionSharesByDegree:
             weights[np.nonzero(self.degrees_of_nodes == deg)] = 1
             x_agg = _opinion_shares_numba(x_traj_int, self.num_opinions, weights)
             x_agg = x_agg[:, self.idx_to_return]
+            if self.normalize:
+                x_agg /= np.sum(weights)
             cv[:, i * len(self.idx_to_return): (i + 1) * len(self.idx_to_return)] = np.copy(x_agg)
 
         return cv
