@@ -80,6 +80,63 @@ class OpinionShares:
         return x_agg
 
 
+class OpinionSharesByDegree:
+    def __init__(self,
+                 num_opinions: int,
+                 network: nx.Graph,
+                 idx_to_return: Union[int, np.ndarray] = None):
+        """
+        Calculate the count of each opinion by degree.
+
+        The output has dimension idx_to_return * number of different degrees.
+        For example, the first idx_to_return entries will represent the counts for nodes with the smallest degree.
+
+        Parameters
+        ----------
+        num_opinions : int
+        network : nx.Graph
+        idx_to_return : Union[int, np.ndarray], optional
+            Shares of which opinions to return. Default: all opinions.
+        """
+        self.degrees_of_nodes = np.array([d for _, d in network.degree()])
+        self.degrees = np.sort(np.unique(self.degrees_of_nodes))
+        self.num_opinions = num_opinions
+
+        if idx_to_return is None:
+            self.idx_to_return = np.arange(num_opinions)
+        elif isinstance(idx_to_return, int):
+            self.idx_to_return = np.array([idx_to_return])
+        else:
+            self.idx_to_return = idx_to_return
+
+        self.dimension = len(self.idx_to_return) * self.degrees.shape[0]
+
+    def __call__(self, x_traj: np.ndarray) -> np.ndarray:
+        """
+        Parameters
+        ----------
+        x_traj : np.ndarray
+            trajectory of CNVM, shape = (?, num_agents).
+
+        Returns
+        -------
+        np.ndarray
+            trajectory projected down via the collective variable, shape = (?, self.dimension)
+        """
+        cv = np.zeros((x_traj.shape[0], self.dimension))
+        num_agents = x_traj.shape[1]
+        x_traj_int = x_traj.astype(int)
+
+        for i, deg in enumerate(self.degrees):
+            weights = np.zeros(num_agents)
+            weights[np.nonzero(self.degrees_of_nodes == deg)] = 1
+            x_agg = _opinion_shares_numba(x_traj_int, self.num_opinions, weights)
+            x_agg = x_agg[:, self.idx_to_return]
+            cv[:, i * len(self.idx_to_return): (i + 1) * len(self.idx_to_return)] = np.copy(x_agg)
+
+        return cv
+
+
 class CompositeCollectiveVariable:
     def __init__(self, collective_variables: list[CollectiveVariable]):
         self.collective_variables = collective_variables
