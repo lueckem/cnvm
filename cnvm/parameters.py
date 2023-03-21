@@ -15,8 +15,8 @@ class Parameters:
     Container for all the simulation Parameters of the Continuous-time Noisy Voter Model (CNVM).
 
     An agent i transitions from his current opinion m to a different opinion n at rate
-    r_imit * q(i,n) * prob_imit[m, n] + r_noise * (1/num_opinions) * prob_noise[m, n]
-    where q(i,n) is the share of opinion n in the neighborhood of agent i.
+    r_imit * d(i,n) / (d(i)^alpha) * prob_imit[m, n] + r_noise * (1/num_opinions) * prob_noise[m, n]
+    where d(i,n) is the count of opinion n in the neighborhood of agent i, and d(i) the degree of node i.
 
     Either a network has to specified, or a NetworkGenerator,
     or num_agents, in which case a complete network is used.
@@ -31,6 +31,7 @@ class Parameters:
     network_generator: Optional[NetworkGenerator] = None
     prob_imit: float | np.ndarray = 1.0
     prob_noise: float | np.ndarray = 1.0
+    alpha: float = 1
 
     def __post_init__(self):
         onemat = np.ones((self.num_opinions, self.num_opinions))
@@ -75,6 +76,7 @@ class Parameters:
         with open(this_filename, "w") as f:
             f.write(f"num_agents = {self.num_agents}\n")
             f.write(f"num_opinions = {self.num_opinions}\n")
+            f.write(f"alpha = {self.alpha}\n")
             f.write(f"r_imit = {self.r_imit}\n")
             f.write(f"r_noise = {self.r_noise}\n\n")
             f.write(f"prob_imit =\n {self.prob_imit}\n\n")
@@ -104,8 +106,8 @@ def convert_rate_to_cnvm(r: np.ndarray, r_tilde: np.ndarray) -> tuple[float, flo
 
     The rates r and r_tilde are defined as:
     An agent i transitions from his current opinion m to a different opinion n at rate
-    r[m, n] * q(i, n) + r_tilde[m, n]
-    where q(i,n) is the share of opinion n in the neighborhood of agent i.
+    r[m, n] * d(i,n) / (d(i)^alpha) + r_tilde[m, n]
+    where d(i,n) is the count of opinion n in the neighborhood of agent i, and d(i) the degree of node i.
     """
     num_opinions = r.shape[0]
 
@@ -132,8 +134,8 @@ def convert_rate_from_cnvm(params: Parameters) -> tuple[np.ndarray, np.ndarray]:
 
     The rates r and r_tilde are defined as:
     An agent i transitions from his current opinion m to a different opinion n at rate
-    r[m, n] * q(i, n) + r_tilde[m, n]
-    where q(i,n) is the share of opinion n in the neighborhood of agent i.
+    r[m, n] * d(i,n) / (d(i)^alpha) + r_tilde[m, n]
+    where d(i,n) is the count of opinion n in the neighborhood of agent i, and d(i) the degree of node i.
     """
     r = params.r_imit * params.prob_imit
     r_tilde = params.r_noise * params.prob_noise / params.num_opinions
