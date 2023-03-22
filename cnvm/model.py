@@ -24,12 +24,15 @@ class CNVM:
             for i in range(self.params.num_agents):
                 self.neighbor_list.append(np.array(list(self.params.network.neighbors(i)), dtype=int))
 
-        self.degree_alpha = None
+        self.degree_alpha = None  # array containing d(i)^(1 - alpha)
         self.next_event_rate = None
         self.noise_probability = None
         self.calculate_rates()
 
     def calculate_rates(self):
+        """
+        Calculate and set self.degree_alpha, self.next_event_rate, and self.noise_probability.
+        """
         if self.params.network is not None:
             self.degree_alpha = np.array([d ** (1 - self.params.alpha) for _, d in self.params.network.degree()])
         else:  # fully connected
@@ -91,9 +94,9 @@ class CNVM:
         ----------
         t_max : float
         x_init : np.ndarray, optional
-            shape=(num_agents,)
+            Initial state, shape=(num_agents,). If no x_init is given, a random one is generated.
         len_output : int, optional
-            number of snapshots to output, as equidistantly spaced as possible between 0 and t_max
+            Number of snapshots to output, as equidistantly spaced as possible between 0 and t_max.
 
         Returns
         -------
@@ -108,12 +111,12 @@ class CNVM:
         x = np.copy(x_init).astype(int)
 
         t_delta = 0 if len_output is None else t_max / len_output
-        if self.params.alpha == 1:
+        if self.params.alpha == 1:  # for alpha = 1, we have faster implementations
             if self.params.network is not None:
                 t_traj, x_traj = _simulate_numba(x, t_delta, self.next_event_rate, self.noise_probability, t_max,
                                                  self.params.num_agents, self.params.num_opinions, self.params.prob_imit,
                                                  self.params.prob_noise, self.neighbor_list)
-            else:
+            else:  # complete network
                 t_traj, x_traj = _simulate_numba_complete_network(x, t_delta, self.next_event_rate, self.noise_probability,
                                                                   t_max, self.params.num_agents, self.params.num_opinions,
                                                                   self.params.prob_imit, self.params.prob_noise)
@@ -196,13 +199,13 @@ def _simulate_numba_complete_network(x, t_delta, next_event_rate, noise_probabil
 @njit()
 def rand_index_numba(prob_cumsum):
     """
-    Random index.
+    Sample random index 0 <= i < len(prob_cumsum) according to probability distribution.
 
     Parameters
     ----------
     prob_cumsum : np.ndarray
-        1D array containing the cumulative probabilities, i.e., the first entry is the probability of choosing index 1,
-        the second entry the probability of choosing index one or two, and so on. The last entry is 1.
+        1D array containing the cumulative probabilities, i.e., the first entry is the probability of choosing index 0,
+        the second entry the probability of choosing index 0 or 1, and so on. The last entry is 1.
     Returns
     -------
     int
