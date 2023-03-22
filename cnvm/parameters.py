@@ -66,7 +66,7 @@ class Parameters:
 
         Parameters
         ----------
-        filename
+        filename : str
         """
         if filename[-4:] != ".txt":
             this_filename = filename + ".txt"
@@ -91,11 +91,30 @@ class Parameters:
 
 
 def save_params(filename: str, params: Parameters):
+    """
+    Save parameters as pickled file.
+
+    Parameters
+    ----------
+    filename : str
+    params : Parameters
+    """
     with open(filename, "wb") as file:
         pickle.dump(params, file)
 
 
 def load_params(filename: str) -> Parameters:
+    """
+    Load parameters from pickled file.
+
+    Parameters
+    ----------
+    filename : str
+
+    Returns
+    -------
+    Parameters
+    """
     with open(filename, "rb") as file:
         return pickle.load(file)
 
@@ -108,6 +127,18 @@ def convert_rate_to_cnvm(r: np.ndarray, r_tilde: np.ndarray) -> tuple[float, flo
     An agent i transitions from his current opinion m to a different opinion n at rate
     r[m, n] * d(i,n) / (d(i)^alpha) + r_tilde[m, n]
     where d(i,n) is the count of opinion n in the neighborhood of agent i, and d(i) the degree of node i.
+
+    Parameters
+    ----------
+    r : np.ndarray
+        shape = (num_opinions, num_opinions)
+    r_tilde : np.ndarray
+        shape = (num_opinions, num_opinions)
+
+    Returns
+    -------
+    tuple[float, float, np.ndarray, np.ndarray]
+        r_imit, r_noise, prob_imit, prob_noise
     """
     num_opinions = r.shape[0]
 
@@ -136,6 +167,15 @@ def convert_rate_from_cnvm(params: Parameters) -> tuple[np.ndarray, np.ndarray]:
     An agent i transitions from his current opinion m to a different opinion n at rate
     r[m, n] * d(i,n) / (d(i)^alpha) + r_tilde[m, n]
     where d(i,n) is the count of opinion n in the neighborhood of agent i, and d(i) the degree of node i.
+
+    Parameters
+    ----------
+    params : Parameters
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        r, r_tilde
     """
     r = params.r_imit * params.prob_imit
     r_tilde = params.r_noise * params.prob_noise / params.num_opinions
