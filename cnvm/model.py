@@ -111,15 +111,15 @@ class CNVM:
         x = np.copy(x_init).astype(int)
 
         t_delta = 0 if len_output is None else t_max / len_output
-        if self.params.alpha == 1:  # for alpha = 1, we have faster implementations
-            if self.params.network is not None:
-                t_traj, x_traj = _simulate_numba(x, t_delta, self.next_event_rate, self.noise_probability, t_max,
+
+        if self.params.network is None:  # for complete networks, we have a faster implementation
+            t_traj, x_traj = _simulate_numba_complete_network(x, t_delta, self.next_event_rate, self.noise_probability,
+                                                              t_max, self.params.num_agents, self.params.num_opinions,
+                                                              self.params.prob_imit, self.params.prob_noise)
+        elif self.params.alpha == 1:  # for alpha = 1, we have a faster implementation
+            t_traj, x_traj = _simulate_numba(x, t_delta, self.next_event_rate, self.noise_probability, t_max,
                                                  self.params.num_agents, self.params.num_opinions, self.params.prob_imit,
                                                  self.params.prob_noise, self.neighbor_list)
-            else:  # complete network
-                t_traj, x_traj = _simulate_numba_complete_network(x, t_delta, self.next_event_rate, self.noise_probability,
-                                                                  t_max, self.params.num_agents, self.params.num_opinions,
-                                                                  self.params.prob_imit, self.params.prob_noise)
         else:
             prob_cumsum = self.degree_alpha / np.sum(self.degree_alpha)
             prob_cumsum = np.cumsum(prob_cumsum)
