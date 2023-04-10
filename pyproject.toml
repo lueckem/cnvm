@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "cnvm"
+version = "0.1.0"
+description = "Implementation of the Continuous-time noisy voter model (CNVM)."
+license = "GPL-3.0-or-later"
+authors = ["Marvin Lücke"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+numpy = [
+    {version = ">=1.23", python = ">=3.11"},
+    {version = ">=1.21", python = "<3.11"}
+]
+numba = [
+    {version = ">=0.56.2", python = ">=3.11"},
+    {version = ">=0.55", python = "<3.11"}
+]
+networkx = ">=2.8.4"
+scipy = ">=1.9.3"
+matplotlib = ">=3.5.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
