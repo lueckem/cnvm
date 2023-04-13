@@ -44,17 +44,11 @@ class CNVM:
         self.next_event_rate = 1 / (total_rate_noise + total_rate_imit)
         self.noise_probability = total_rate_noise / (total_rate_imit + total_rate_noise)
 
-    def update_network(self, network: Optional[nx.Graph] = None):
+    def update_network(self):
         """
-        If no network is provided, generation from a NetworkGenerator in params is attempted.
+        Update network from NetworkGenerator in params.
         """
-        if network is None:
-            if self.params.network_generator is not None:
-                network = self.params.network_generator()
-            else:
-                raise ValueError("Either provide a network or a NetworkGenerator.")
-
-        self.params.set_network(network)
+        self.params.update_network_by_generator()
 
         self.neighbor_list = List()
         for i in range(self.params.num_agents):
@@ -103,7 +97,7 @@ class CNVM:
         tuple[np.ndarray]
             t_traj (shape=(?,)), x_traj (shape=(?,num_agents))
         """
-        if self.params.network is None and self.params.network_generator is not None:
+        if self.params.network_generator is not None:
             self.update_network()
 
         if x_init is None:
