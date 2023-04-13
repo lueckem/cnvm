@@ -196,7 +196,7 @@ class TestParametersRates(TestCase):
             Parameters(num_opinions=self.num_opinions,
                        num_agents=self.num_agents,
                        r_imit=1,
-                       r_noise=-0.1,
+                       r_noise=0.1,
                        prob_imit=prob_imit)
 
         prob_noise = np.array([[0, 0.2], [1.5, 0]])
@@ -204,7 +204,7 @@ class TestParametersRates(TestCase):
             Parameters(num_opinions=self.num_opinions,
                        num_agents=self.num_agents,
                        r_imit=1,
-                       r_noise=-0.1,
+                       r_noise=0.1,
                        prob_noise=prob_noise)
 
         with self.assertRaises(ValueError):
@@ -212,6 +212,65 @@ class TestParametersRates(TestCase):
                        num_agents=self.num_agents,
                        r_imit=1,
                        r=1)
+
+
+class TestParametersGetSet(TestCase):
+    def setUp(self):
+        self.num_opinions = 3
+        self.num_agents = 100
+        self.r = 1
+        self.r_tilde = 0.1
+
+    def test_get_network(self):
+        # complete network
+        params = Parameters(num_opinions=self.num_opinions,
+                            num_agents=self.num_agents,
+                            r=self.r, r_tilde=self.r_tilde)
+        network = params.get_network()
+        self.assertEqual(network.number_of_edges(), self.num_agents * (self.num_agents - 1) / 2)
+
+        # network
+        network = nx.star_graph(self.num_agents - 1)
+        params = Parameters(num_opinions=self.num_opinions,
+                            network=network,
+                            r=self.r, r_tilde=self.r_tilde)
+        self.assertTrue(nx.utils.graphs_equal(network, params.get_network()))
+
+        # network generator
+        params = Parameters(num_opinions=self.num_opinions,
+                            network_generator=ng.ErdosRenyiGenerator(self.num_agents, 0.1),
+                            r=self.r, r_tilde=self.r_tilde)
+        network = params.get_network()
+        self.assertEqual(network.number_of_nodes(), self.num_agents)
+
+    def test_set_network(self):
+        params = Parameters(num_opinions=self.num_opinions,
+                            num_agents=self.num_agents,
+                            r=self.r, r_tilde=self.r_tilde)
+        network = nx.star_graph(self.num_agents - 1)
+        params.set_network(network)
+        self.assertTrue(nx.utils.graphs_equal(network, params.get_network()))
+
+        params = Parameters(num_opinions=self.num_opinions,
+                            network_generator=ng.ErdosRenyiGenerator(self.num_agents, 0.1),
+                            r=self.r, r_tilde=self.r_tilde)
+        with self.assertRaises(ValueError):
+            params.set_network(network)
+
+    def test_update_network(self):
+        params = Parameters(num_opinions=self.num_opinions,
+                            network_generator=ng.ErdosRenyiGenerator(self.num_agents, 0.1),
+                            r=self.r, r_tilde=self.r_tilde)
+        params.update_network_by_generator()
+        self.assertIsNotNone(params.network)
+
+        params = Parameters(num_opinions=self.num_opinions,
+                            num_agents=self.num_agents,
+                            r=self.r, r_tilde=self.r_tilde)
+        with self.assertRaises(ValueError):
+            params.update_network_by_generator()
+
+
 
 
 class TestConversionOfRates(TestCase):
@@ -253,3 +312,17 @@ class TestConversionOfRates(TestCase):
         r, r_tilde = convert_rate_from_cnvm(params)
         self.assertTrue(np.allclose(r, self.r))
         self.assertTrue(np.allclose(r_tilde, self.r_tilde))
+
+    def test_rate_0(self):
+        true_r_imit = 0
+        true_r_noise = 0
+        prob = np.zeros((2, 2))
+
+        r = np.zeros((2, 2))
+        r_tilde = np.zeros((2, 2))
+
+        r_imit, r_noise, prob_imit, prob_noise = convert_rate_to_cnvm(r, r_tilde)
+        self.assertTrue(np.allclose(r_imit, true_r_imit))
+        self.assertTrue(np.allclose(r_noise, true_r_noise))
+        self.assertTrue(np.allclose(prob_imit, prob))
+        self.assertTrue(np.allclose(prob_noise, prob))
