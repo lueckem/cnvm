@@ -146,6 +146,17 @@ class OpinionSharesByDegree:
 
 class CompositeCollectiveVariable:
     def __init__(self, collective_variables: list[CollectiveVariable]):
+        """
+        Concatenate multiple collective variables.
+
+        Typical use-case: CV1 measures the share of opinion 1 in one part of the network,
+        CV2 in a different part of the network (both built via OpinionShares class with weights).
+        CompositeCollectiveVariable([CV1, CV2]) concatenates the output of the two.
+
+        Parameters
+        ----------
+        collective_variables : list
+        """
         self.collective_variables = collective_variables
         self.dimension = sum([cv.dimension for cv in collective_variables])
 
@@ -166,6 +177,17 @@ class CompositeCollectiveVariable:
 
 class Interfaces:
     def __init__(self, network: nx.Graph, normalize: bool = False):
+        """
+        Count the number of interfaces between opinion 0 and 1.
+
+        Can not be used when there are more than these two opinions.
+
+        Parameters
+        ----------
+        network : nx.Graph
+        normalize : bool, optional
+            Normalize by dividing by the number of edges in the network.
+        """
         self.dimension = 1
         self.normalize = normalize
         self.network = network
@@ -182,6 +204,8 @@ class Interfaces:
         np.ndarray
             trajectory projected down via the collective variable, shape = (?, self.dimension)
         """
+        if np.max(x_traj) > 1:
+            raise ValueError("Interfaces can only be used for 2 opinions.")
         out = np.zeros((x_traj.shape[0], 1))
 
         for i in range(x_traj.shape[0]):
