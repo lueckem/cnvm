@@ -98,6 +98,7 @@ class OpinionSharesByDegree:
         network : nx.Graph
         normalize : bool, optional
             If true return percentages, else counts.
+            The normalization is done within each group of nodes with the same degree.
         idx_to_return : Union[int, np.ndarray], optional
             Shares of which opinions to return. Default: all opinions.
         """
