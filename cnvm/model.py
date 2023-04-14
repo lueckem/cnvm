@@ -18,16 +18,19 @@ class CNVM:
         params : Parameters
         """
         self.params = params
+        self.neighbor_list = List()  # self.neighbor_list[i] = array of neighbors of node i
+        self.degree_alpha = None  # array containing d(i)^(1 - alpha)
+        self.next_event_rate = None
+        self.noise_probability = None
 
+        self.calculate_neighbor_list()
+        self.calculate_rates()
+
+    def calculate_neighbor_list(self):
         self.neighbor_list = List()  # self.neighbor_list[i] = array of neighbors of node i
         if self.params.network is not None:  # not needed for complete network
             for i in range(self.params.num_agents):
                 self.neighbor_list.append(np.array(list(self.params.network.neighbors(i)), dtype=int))
-
-        self.degree_alpha = None  # array containing d(i)^(1 - alpha)
-        self.next_event_rate = None
-        self.noise_probability = None
-        self.calculate_rates()
 
     def calculate_rates(self):
         """
@@ -49,11 +52,7 @@ class CNVM:
         Update network from NetworkGenerator in params.
         """
         self.params.update_network_by_generator()
-
-        self.neighbor_list = List()
-        for i in range(self.params.num_agents):
-            self.neighbor_list.append(np.array(list(self.params.network.neighbors(i)), dtype=int))
-
+        self.calculate_neighbor_list()
         self.calculate_rates()
 
     def update_rates(self, r_imit: float = None,
@@ -94,7 +93,7 @@ class CNVM:
 
         Returns
         -------
-        tuple[np.ndarray]
+        tuple[np.ndarray, np.ndarray]
             t_traj (shape=(?,)), x_traj (shape=(?,num_agents))
         """
         if self.params.network_generator is not None:
@@ -190,8 +189,8 @@ def _simulate_numba_complete_network(x, t_delta, next_event_rate, noise_probabil
     return t_traj, x_traj
 
 
-@njit()
-def rand_index_numba(prob_cumsum):
+@njit
+def rand_index_numba(prob_cumsum) -> int:
     """
     Sample random index 0 <= i < len(prob_cumsum) according to probability distribution.
 

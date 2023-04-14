@@ -271,8 +271,6 @@ class TestParametersGetSet(TestCase):
             params.update_network_by_generator()
 
 
-
-
 class TestConversionOfRates(TestCase):
     def setUp(self):
         self.num_opinions = 3
