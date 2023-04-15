@@ -221,6 +221,18 @@ class TestParametersGetSet(TestCase):
         self.r = 1
         self.r_tilde = 0.1
 
+    def test_change_rates(self):
+        params = Parameters(num_opinions=self.num_opinions,
+                            num_agents=self.num_agents,
+                            r=self.r, r_tilde=self.r_tilde)
+        new_r = np.array([[0, 2, 3], [4, 0, 6], [7, 8, 0]])
+        new_r_tilde = 0.2
+
+        params.change_rates(r=new_r, r_tilde=new_r_tilde)
+        self.assertTrue(np.allclose(params.r, new_r))
+        new_r_tilde = np.array([[0, 0.2, 0.2], [0.2, 0, 0.2], [0.2, 0.2, 0]])
+        self.assertTrue(np.allclose(params.r_tilde, new_r_tilde))
+
     def test_get_network(self):
         # complete network
         params = Parameters(num_opinions=self.num_opinions,

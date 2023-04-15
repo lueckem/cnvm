@@ -171,5 +171,4 @@ class TestPropensities(TestCase):
                       [1, 1, 1, 0, 0]])
         c = np.array([[6.2, 6.3],
                       [4.2, 4.3]])
-        print(propensities(x))
         self.assertTrue(np.allclose(propensities(x), c))

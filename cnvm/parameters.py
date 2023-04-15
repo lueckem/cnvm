@@ -45,9 +45,23 @@ class Parameters:
     prob_noise: float | np.ndarray = 1
 
     def __post_init__(self):
-        one_mat = np.ones((self.num_opinions, self.num_opinions))
-
         # rates
+        self.tidy_up_rates()
+
+        # networks
+        if self.network_generator is not None:
+            self.num_agents = self.network_generator.num_agents
+            self.network = None
+        elif self.network is not None:
+            self.num_agents = len(self.network.nodes)
+        elif self.num_agents is None:
+            raise ValueError("Either a network or a NetworkGenerator or num_agents has to be specified.")
+
+    def tidy_up_rates(self):
+        """
+        Check if the given rate parameters are valid and set up the other rate parameters accordingly.
+        """
+        one_mat = np.ones((self.num_opinions, self.num_opinions))
         if self.r is not None and self.r_tilde is not None:  # style 1
             if isinstance(self.r, (float, int)):
                 self.r = self.r * one_mat
@@ -80,16 +94,25 @@ class Parameters:
             self.r_tilde = self.r_noise * self.prob_noise / self.num_opinions
 
         else:
-            raise ValueError("Rate parameters r and r_tilde have to be provided.")
+            raise ValueError("Rate parameters have to be provided.")
 
-        # networks
-        if self.network_generator is not None:
-            self.num_agents = self.network_generator.num_agents
-            self.network = None
-        elif self.network is not None:
-            self.num_agents = len(self.network.nodes)
-        elif self.num_agents is None:
-            raise ValueError("Either a network or a NetworkGenerator or num_agents has to be specified.")
+    def change_rates(self, r: float | np.ndarray = None,
+                     r_tilde: float | np.ndarray = None):
+        """
+        Change one or both rate parameters.
+
+        If only one argument is given, the other rate parameter stays the same.
+
+        Parameters
+        ----------
+        r : float | np.ndarray, optional
+        r_tilde : float | np.ndarray
+        """
+        if r is not None:
+            self.r = r
+        if r_tilde is not None:
+            self.r_tilde = r_tilde
+        self.tidy_up_rates()
 
     def get_network(self) -> nx.Graph:
         """

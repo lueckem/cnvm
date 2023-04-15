@@ -27,6 +27,9 @@ class CNVM:
         self.calculate_rates()
 
     def calculate_neighbor_list(self):
+        """
+        Calculate and set self.neighbor_list.
+        """
         self.neighbor_list = List()  # self.neighbor_list[i] = array of neighbors of node i
         if self.params.network is not None:  # not needed for complete network
             for i in range(self.params.num_agents):
@@ -55,25 +58,9 @@ class CNVM:
         self.calculate_neighbor_list()
         self.calculate_rates()
 
-    def update_rates(self, r_imit: float = None,
-                     r_noise: float = None,
-                     prob_imit: float | np.ndarray = None,
-                     prob_noise: float | np.ndarray = None):
-        if r_imit is not None:
-            self.params.r_imit = r_imit
-        if r_noise is not None:
-            self.params.r_noise = r_noise
-        if prob_imit is not None:
-            if isinstance(prob_imit, (float, int)):
-                self.params.prob_imit = prob_imit * np.ones((self.params.num_opinions, self.params.num_opinions))
-            else:
-                self.params.prob_imit = prob_imit
-        if prob_noise is not None:
-            if isinstance(prob_noise, (float, int)):
-                self.params.prob_noise = prob_noise * np.ones((self.params.num_opinions, self.params.num_opinions))
-            else:
-                self.params.prob_noise = prob_noise
-
+    def update_rates(self, r: float | np.ndarray = None,
+                     r_tilde: float | np.ndarray = None):
+        self.params.change_rates(r, r_tilde)
         self.calculate_rates()
 
     def simulate(self,
