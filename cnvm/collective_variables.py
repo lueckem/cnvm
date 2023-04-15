@@ -220,31 +220,43 @@ class Interfaces:
 
 
 class Propensities:
-    def __init__(self, params: Parameters, weighted=False):
-        """ Only for 2 opinions. """
+    def __init__(self, params: Parameters):
+        """
+        The propensities are defined as cumulative transition rates in the system.
+
+        Only implemented for 2 opinions, 0 and 1.
+        Output 2-dimensional, (prop_01, prop_10).
+
+        The propensity prop_mn is defined as
+        sum_i^N ( r[m, n] * d(i,n) / (d(i)^alpha) + r_tilde[m, n] ).
+
+        Parameters
+        ----------
+        params : Parameters
+        """
         self.dimension = 2
         self.params = params
-        self.weighted = weighted
 
     def __call__(self, x_traj: np.ndarray) -> np.ndarray:
         out = np.zeros((x_traj.shape[0], 2))
         for j in range(self.params.num_agents):
-            neighbors = list(self.params.network.neighbors(j))
+            if self.params.network is not None:
+                neighbors = list(self.params.network.neighbors(j))
+                degrees = [d for _, d in self.params.network.degree()]
+            else:  # complete
+                neighbors = list(range(0, j)) + list(range(j + 1, self.params.num_agents))
+                degrees = (self.params.num_agents - 1) * np.ones(self.params.num_agents)
+
             for i in range(x_traj.shape[0]):
-                share_opinion_0 = np.sum(x_traj[i, neighbors] == 0) / len(neighbors)
-                share_opinion_1 = 1 - share_opinion_0
                 if x_traj[i, j] == 0:
-                    prop_01 = self.params.r_imit * self.params.prob_imit[0, 1] * share_opinion_1 + \
-                              self.params.r_noise * self.params.prob_noise[0, 1] / self.params.num_opinions
-                    if self.weighted:
-                        prop_01 *= len(neighbors)
-                    out[i, 0] += prop_01
+                    m, n = 0, 1
                 else:
-                    prop_10 = self.params.r_imit * self.params.prob_imit[1, 0] * share_opinion_0 + \
-                              self.params.r_noise * self.params.prob_noise[1, 0] / self.params.num_opinions
-                    if self.weighted:
-                        prop_10 *= len(neighbors)
-                    out[i, 1] += prop_10
+                    m, n = 1, 0
+                count_opinion_n = np.sum(x_traj[i, neighbors] == n)
+
+                prop_mn = self.params.r[m, n] * count_opinion_n / (degrees[i] ** self.params.alpha)
+                prop_mn += self.params.r_tilde[m, n]
+                out[i, m] += prop_mn
 
         return out
 
