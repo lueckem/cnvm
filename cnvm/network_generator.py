@@ -7,13 +7,13 @@ class NetworkGenerator(Protocol):
     num_agents: int
 
     def __call__(self) -> nx.Graph:
-        """ Generate a network. """
+        """Generate a network."""
 
     def __repr__(self) -> str:
-        """ Return string representation of the generator. """
+        """Return string representation of the generator."""
 
     def abrv(self) -> str:
-        """ Return short description for file names. """
+        """Return short description for file names."""
 
 
 class ErdosRenyiGenerator:
@@ -42,7 +42,9 @@ class RandomRegularGenerator:
         return nx.random_regular_graph(self.d, self.num_agents)
 
     def __repr__(self) -> str:
-        return f"Uniform random regular graph with d={self.d} on {self.num_agents} nodes"
+        return (
+            f"Uniform random regular graph with d={self.d} on {self.num_agents} nodes"
+        )
 
     def abrv(self) -> str:
         return f"regular_d{self.d}_N{self.num_agents}"
@@ -95,9 +97,14 @@ class StochasticBlockGenerator:
         adj_matrix = np.zeros((self.num_agents, self.num_agents))
         for i in range(self.num_blocks):
             for j in range(i + 1):
-                this_block = (np.random.random((self.block_size, self.block_size)) <= self.p_matrix[i, j])
-                adj_matrix[i * self.block_size: (i + 1) * self.block_size,
-                           j * self.block_size: (j + 1) * self.block_size] = this_block
+                this_block = (
+                    np.random.random((self.block_size, self.block_size))
+                    <= self.p_matrix[i, j]
+                )
+                adj_matrix[
+                    i * self.block_size : (i + 1) * self.block_size,
+                    j * self.block_size : (j + 1) * self.block_size,
+                ] = this_block
 
         # only keep the lower triangle and symmetrize
         adj_matrix = np.tril(adj_matrix, -1)
@@ -119,7 +126,7 @@ class GridGenerator:
         self.periodic = periodic
 
         # find shape as square as possible
-        shape0 = round(num_agents ** 0.5)
+        shape0 = round(num_agents**0.5)
         while num_agents % shape0 != 0:
             shape0 += 1
         shape1 = int(num_agents / shape0)
@@ -167,7 +174,11 @@ class BinomialWattsStrogatzGenerator:
         edges = edges[idx_to_keep, :]
 
         # insert edges
-        p_insert = self.p_rewire * self.num_neighbors / (self.num_agents - 1 - (1 - self.p_rewire) * self.num_neighbors)
+        p_insert = (
+            self.p_rewire
+            * self.num_neighbors
+            / (self.num_agents - 1 - (1 - self.p_rewire) * self.num_neighbors)
+        )
         if p_insert > 0.2:
             network = nx.erdos_renyi_graph(self.num_agents, p_insert)
         else:

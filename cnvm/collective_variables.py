@@ -25,10 +25,13 @@ class CollectiveVariable(Protocol):
 
 
 class OpinionShares:
-    def __init__(self, num_opinions,
-                 normalize: bool = False,
-                 weights: np.ndarray = None,
-                 idx_to_return: Union[int, np.ndarray] = None):
+    def __init__(
+        self,
+        num_opinions,
+        normalize: bool = False,
+        weights: np.ndarray = None,
+        idx_to_return: Union[int, np.ndarray] = None,
+    ):
         """
         Calculate the opinion counts/ percentages.
 
@@ -69,7 +72,9 @@ class OpinionShares:
             trajectory projected down via the collective variable, shape = (?, self.dimension)
         """
         num_agents = x_traj.shape[1]
-        x_agg = _opinion_shares_numba(x_traj.astype(int), self.num_opinions, self.weights)
+        x_agg = _opinion_shares_numba(
+            x_traj.astype(int), self.num_opinions, self.weights
+        )
         x_agg = x_agg[:, self.idx_to_return]
 
         if self.normalize:
@@ -81,11 +86,13 @@ class OpinionShares:
 
 
 class OpinionSharesByDegree:
-    def __init__(self,
-                 num_opinions: int,
-                 network: nx.Graph,
-                 normalize: bool = False,
-                 idx_to_return: Union[int, np.ndarray] = None):
+    def __init__(
+        self,
+        num_opinions: int,
+        network: nx.Graph,
+        normalize: bool = False,
+        idx_to_return: Union[int, np.ndarray] = None,
+    ):
         """
         Calculate the count of each opinion by degree.
 
@@ -139,7 +146,9 @@ class OpinionSharesByDegree:
             x_agg = x_agg[:, self.idx_to_return]
             if self.normalize:
                 x_agg /= np.sum(weights)
-            cv[:, i * len(self.idx_to_return): (i + 1) * len(self.idx_to_return)] = np.copy(x_agg)
+            cv[
+                :, i * len(self.idx_to_return) : (i + 1) * len(self.idx_to_return)
+            ] = np.copy(x_agg)
 
         return cv
 
@@ -244,7 +253,9 @@ class Propensities:
                 neighbors = list(self.params.network.neighbors(j))
                 degrees = [d for _, d in self.params.network.degree()]
             else:  # complete
-                neighbors = list(range(0, j)) + list(range(j + 1, self.params.num_agents))
+                neighbors = list(range(0, j)) + list(
+                    range(j + 1, self.params.num_agents)
+                )
                 degrees = (self.params.num_agents - 1) * np.ones(self.params.num_agents)
 
             for i in range(x_traj.shape[0]):
@@ -254,7 +265,11 @@ class Propensities:
                     m, n = 1, 0
                 count_opinion_n = np.sum(x_traj[i, neighbors] == n)
 
-                prop_mn = self.params.r[m, n] * count_opinion_n / (degrees[i] ** self.params.alpha)
+                prop_mn = (
+                    self.params.r[m, n]
+                    * count_opinion_n
+                    / (degrees[i] ** self.params.alpha)
+                )
                 prop_mn += self.params.r_tilde[m, n]
                 out[i, m] += prop_mn
 

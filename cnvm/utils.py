@@ -12,13 +12,15 @@ from cnvm.model import CNVM
 from cnvm.collective_variables import CollectiveVariable
 
 
-def sample_many_runs(params: Parameters,
-                     initial_states: np.ndarray,
-                     t_max: float,
-                     num_timesteps: int,
-                     num_runs: int,
-                     n_jobs: int = None,
-                     collective_variable: CollectiveVariable = None) -> tuple[np.ndarray, np.ndarray]:
+def sample_many_runs(
+    params: Parameters,
+    initial_states: np.ndarray,
+    t_max: float,
+    num_timesteps: int,
+    num_runs: int,
+    n_jobs: int = None,
+    collective_variable: CollectiveVariable = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Sample multiple runs of the CNVM specified by params.
 
@@ -51,8 +53,9 @@ def sample_many_runs(params: Parameters,
 
     # no multiprocessing
     if n_jobs is None:
-        x_out = _sample_many_runs_subprocess(params, initial_states, t_max, num_timesteps, num_runs,
-                                             collective_variable)
+        x_out = _sample_many_runs_subprocess(
+            params, initial_states, t_max, num_timesteps, num_runs, collective_variable
+        )
         return t_out, x_out
 
     # multiprocessing
@@ -62,9 +65,20 @@ def sample_many_runs(params: Parameters,
     if initial_states.shape[0] == 1:  # parallelization along num_runs
         num_runs_per_process = int(np.ceil(num_runs / n_jobs))
         with mp.Pool(n_jobs) as pool:
-            x_out = pool.starmap(_sample_many_runs_subprocess,
-                                 [(params, initial_states, t_max, num_timesteps, num_runs_per_process,
-                                   collective_variable)] * n_jobs)
+            x_out = pool.starmap(
+                _sample_many_runs_subprocess,
+                [
+                    (
+                        params,
+                        initial_states,
+                        t_max,
+                        num_timesteps,
+                        num_runs_per_process,
+                        collective_variable,
+                    )
+                ]
+                * n_jobs,
+            )
             x_out = np.concatenate(x_out, axis=1)
             x_out = x_out[:, :num_runs, :, :]
             return t_out, x_out
@@ -72,32 +86,51 @@ def sample_many_runs(params: Parameters,
     # parallelization along num_initial states
     initial_states_subprocesses = np.array_split(initial_states, n_jobs)
     with mp.Pool(n_jobs) as pool:
-        x_out = pool.starmap(_sample_many_runs_subprocess,
-                             [(params, initial_states_subprocesses[i], t_max, num_timesteps, num_runs,
-                               collective_variable) for i in range(n_jobs)])
+        x_out = pool.starmap(
+            _sample_many_runs_subprocess,
+            [
+                (
+                    params,
+                    initial_states_subprocesses[i],
+                    t_max,
+                    num_timesteps,
+                    num_runs,
+                    collective_variable,
+                )
+                for i in range(n_jobs)
+            ],
+        )
         x_out = np.concatenate(x_out, axis=0)
         return t_out, x_out
 
 
-def _sample_many_runs_subprocess(params: Parameters,
-                                 initial_states: np.ndarray,
-                                 t_max: float,
-                                 num_timesteps: int,
-                                 num_runs: int,
-                                 collective_variable: CollectiveVariable = None) -> np.ndarray:
+def _sample_many_runs_subprocess(
+    params: Parameters,
+    initial_states: np.ndarray,
+    t_max: float,
+    num_timesteps: int,
+    num_runs: int,
+    collective_variable: CollectiveVariable = None,
+) -> np.ndarray:
     t_out = np.linspace(0, t_max, num_timesteps)
     num_initial_states = initial_states.shape[0]
     model = CNVM(params)
     if collective_variable is None:
-        x_out = np.zeros((num_initial_states, num_runs, num_timesteps, model.params.num_agents))
+        x_out = np.zeros(
+            (num_initial_states, num_runs, num_timesteps, model.params.num_agents)
+        )
     else:
-        x_out = np.zeros((num_initial_states, num_runs, num_timesteps, collective_variable.dimension))
+        x_out = np.zeros(
+            (num_initial_states, num_runs, num_timesteps, collective_variable.dimension)
+        )
 
     for j in range(num_initial_states):
         for i in range(num_runs):
             if model.params.network_generator is not None:
                 model.update_network()
-            t, x = model.simulate(t_max, len_output=4 * num_timesteps, x_init=initial_states[j])
+            t, x = model.simulate(
+                t_max, len_output=4 * num_timesteps, x_init=initial_states[j]
+            )
             t_ind = argmatch(t_out, t)
             if collective_variable is None:
                 x_out[j, i, :, :] = x[t_ind, :]
@@ -106,10 +139,9 @@ def _sample_many_runs_subprocess(params: Parameters,
     return x_out
 
 
-def calc_rre_traj(params: Parameters,
-                  c_0: np.ndarray,
-                  t_max: float,
-                  t_eval=None) -> tuple[np.ndarray, np.ndarray]:
+def calc_rre_traj(
+    params: Parameters, c_0: np.ndarray, t_max: float, t_eval=None
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Solve the RRE given parameters, starting from c_0, up to time t_max.
 
@@ -139,8 +171,10 @@ def calc_rre_traj(params: Parameters,
                 state_change[m] = -1
                 state_change[n] = 1
 
-                prop = c[m] * (params.r_imit * params.prob_imit[m, n] * c[n] +
-                               params.r_noise * params.prob_noise[m, n] / params.num_opinions)
+                prop = c[m] * (
+                    params.r_imit * params.prob_imit[m, n] * c[n]
+                    + params.r_noise * params.prob_noise[m, n] / params.num_opinions
+                )
 
                 out += prop * state_change
         return out
@@ -173,7 +207,9 @@ def argmatch(x_ref, x):
 
     while ref_ind < size and ind < x.shape[0] - 1:
         if x[ind] <= x_ref[ref_ind] <= x[ind + 1]:
-            if np.abs(x[ind] - x_ref[ref_ind]) < np.abs(x[ind + 1] - x_ref[ref_ind]):  # smaller is nearer
+            if np.abs(x[ind] - x_ref[ref_ind]) < np.abs(
+                x[ind + 1] - x_ref[ref_ind]
+            ):  # smaller is nearer
                 out[ref_ind] = ind
             else:  # bigger is nearer
                 out[ref_ind] = ind + 1
@@ -188,7 +224,9 @@ def argmatch(x_ref, x):
     return out
 
 
-def plot_state_on_network(network: nx.Graph, x: np.ndarray, ax: matplotlib.axes.Axes) -> None:
+def plot_state_on_network(
+    network: nx.Graph, x: np.ndarray, ax: matplotlib.axes.Axes
+) -> None:
     """
     Draw the state x on a network on a given matplotlib axes.
 
@@ -204,11 +242,13 @@ def plot_state_on_network(network: nx.Graph, x: np.ndarray, ax: matplotlib.axes.
     nx.draw(network, pos=pos, ax=ax, node_color=colors, cmap=cmap)
 
 
-def animate_traj_on_network(network: nx.Graph,
-                            x: np.ndarray,
-                            filename: str,
-                            t: np.ndarray = None,
-                            animation_duration: float = 20) -> None:
+def animate_traj_on_network(
+    network: nx.Graph,
+    x: np.ndarray,
+    filename: str,
+    t: np.ndarray = None,
+    animation_duration: float = 20,
+) -> None:
     """
     Create .gif animation of trajectory x on a network and save under filename.
 
@@ -237,7 +277,9 @@ def animate_traj_on_network(network: nx.Graph,
         ax.set_title(f"t = {np.round(t[t_step], 2)}")
 
     interval = animation_duration / x.shape[0]
-    anim = matplotlib.animation.FuncAnimation(fig, update, frames=x.shape[0], interval=interval * 1000)
+    anim = matplotlib.animation.FuncAnimation(
+        fig, update, frames=x.shape[0], interval=interval * 1000
+    )
 
-    writergif = matplotlib.animation.PillowWriter(fps=int(1/interval))
+    writergif = matplotlib.animation.PillowWriter(fps=int(1 / interval))
     anim.save(filename, writer=writergif)

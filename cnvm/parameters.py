@@ -28,6 +28,7 @@ class Parameters:
     r_imit * d(i,n) / (d(i)^alpha) * prob_imit[m, n] + r_noise * (1/num_opinions) * prob_noise[m, n].
     These parameters can be provided instead of the usual r and r_tilde.)
     """
+
     num_opinions: int
     num_agents: int = None
     network: nx.Graph | None = field(default=None, repr=False)
@@ -55,7 +56,9 @@ class Parameters:
         elif self.network is not None:
             self.num_agents = len(self.network.nodes)
         elif self.num_agents is None:
-            raise ValueError("Either a network or a NetworkGenerator or num_agents has to be specified.")
+            raise ValueError(
+                "Either a network or a NetworkGenerator or num_agents has to be specified."
+            )
 
     def tidy_up_rates(self):
         """
@@ -73,7 +76,12 @@ class Parameters:
             if np.min(self.r) < 0 or np.min(self.r_tilde) < 0:
                 raise ValueError("Rates have to be non-negative.")
 
-            self.r_imit, self.r_noise, self.prob_imit, self.prob_noise = convert_rate_to_cnvm(self.r, self.r_tilde)
+            (
+                self.r_imit,
+                self.r_noise,
+                self.prob_imit,
+                self.prob_noise,
+            ) = convert_rate_to_cnvm(self.r, self.r_tilde)
 
         elif self.r_imit is not None and self.r_noise is not None:  # style 2
             if isinstance(self.prob_imit, (float, int)):
@@ -96,8 +104,9 @@ class Parameters:
         else:
             raise ValueError("Rate parameters have to be provided.")
 
-    def change_rates(self, r: float | np.ndarray = None,
-                     r_tilde: float | np.ndarray = None):
+    def change_rates(
+        self, r: float | np.ndarray = None, r_tilde: float | np.ndarray = None
+    ):
         """
         Change one or both rate parameters.
 
@@ -217,7 +226,9 @@ def load_params(filename: str) -> Parameters:
         return pickle.load(file)
 
 
-def convert_rate_to_cnvm(r: np.ndarray, r_tilde: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray]:
+def convert_rate_to_cnvm(
+    r: np.ndarray, r_tilde: np.ndarray
+) -> tuple[float, float, np.ndarray, np.ndarray]:
     """
     Convert the rates r and r_tilde to the parameters used in the CNVM, i.e., r_imit, r_noise, prob_imit, prob_noise.
 

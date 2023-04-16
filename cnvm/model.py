@@ -1,9 +1,7 @@
 from __future__ import annotations
-import networkx as nx
 import numpy as np
 from numba import njit
 from numba.typed import List
-from typing import Optional
 
 from cnvm.parameters import Parameters
 
@@ -12,13 +10,14 @@ class CNVM:
     def __init__(self, params: Parameters):
         """
         Continuous-time Noisy Voter Model.
-        
+
         Parameters
         ----------
         params : Parameters
         """
         self.params = params
-        self.neighbor_list = List()  # self.neighbor_list[i] = array of neighbors of node i
+        # self.neighbor_list[i] = array of neighbors of node i
+        self.neighbor_list = List()
         self.degree_alpha = None  # array containing d(i)^(1 - alpha)
         self.next_event_rate = None
         self.noise_probability = None
@@ -30,20 +29,25 @@ class CNVM:
         """
         Calculate and set self.neighbor_list.
         """
-        self.neighbor_list = List()  # self.neighbor_list[i] = array of neighbors of node i
+        self.neighbor_list = List()
         if self.params.network is not None:  # not needed for complete network
             for i in range(self.params.num_agents):
-                self.neighbor_list.append(np.array(list(self.params.network.neighbors(i)), dtype=int))
+                self.neighbor_list.append(
+                    np.array(list(self.params.network.neighbors(i)), dtype=int)
+                )
 
     def calculate_rates(self):
         """
         Calculate and set self.degree_alpha, self.next_event_rate, and self.noise_probability.
         """
         if self.params.network is not None:
-            self.degree_alpha = np.array([d ** (1 - self.params.alpha) for _, d in self.params.network.degree()])
+            self.degree_alpha = np.array(
+                [d ** (1 - self.params.alpha) for _, d in self.params.network.degree()]
+            )
         else:  # fully connected
-            self.degree_alpha = np.ones(self.params.num_agents) * (self.params.num_agents - 1) ** (
-                        1 - self.params.alpha)
+            self.degree_alpha = np.ones(self.params.num_agents) * (
+                self.params.num_agents - 1
+            ) ** (1 - self.params.alpha)
 
         total_rate_noise = self.params.r_noise * self.params.num_agents
         total_rate_imit = self.params.r_imit * np.sum(self.degree_alpha)
@@ -58,15 +62,15 @@ class CNVM:
         self.calculate_neighbor_list()
         self.calculate_rates()
 
-    def update_rates(self, r: float | np.ndarray = None,
-                     r_tilde: float | np.ndarray = None):
+    def update_rates(
+        self, r: float | np.ndarray = None, r_tilde: float | np.ndarray = None
+    ):
         self.params.change_rates(r, r_tilde)
         self.calculate_rates()
 
-    def simulate(self,
-                 t_max: float,
-                 x_init: np.ndarray = None,
-                 len_output: int = None) -> tuple[np.ndarray, np.ndarray]:
+    def simulate(
+        self, t_max: float, x_init: np.ndarray = None, len_output: int = None
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Simulate the model from t=0 to t=t_max.
 
@@ -87,32 +91,73 @@ class CNVM:
             self.update_network()
 
         if x_init is None:
-            x_init = np.random.choice(np.arange(self.params.num_opinions), size=self.params.num_agents)
+            x_init = np.random.choice(
+                np.arange(self.params.num_opinions), size=self.params.num_agents
+            )
         x = np.copy(x_init).astype(int)
 
         t_delta = 0 if len_output is None else t_max / len_output
 
-        if self.params.network is None:  # for complete networks, we have a faster implementation
-            t_traj, x_traj = _simulate_numba_complete_network(x, t_delta, self.next_event_rate, self.noise_probability,
-                                                              t_max, self.params.num_agents, self.params.num_opinions,
-                                                              self.params.prob_imit, self.params.prob_noise)
-        elif self.params.alpha == 1:  # for alpha = 1, we have a faster implementation
-            t_traj, x_traj = _simulate_numba(x, t_delta, self.next_event_rate, self.noise_probability, t_max,
-                                                 self.params.num_agents, self.params.num_opinions, self.params.prob_imit,
-                                                 self.params.prob_noise, self.neighbor_list)
+        # for complete networks, we have a faster implementation
+        if self.params.network is None:
+            t_traj, x_traj = _simulate_numba_complete_network(
+                x,
+                t_delta,
+                self.next_event_rate,
+                self.noise_probability,
+                t_max,
+                self.params.num_agents,
+                self.params.num_opinions,
+                self.params.prob_imit,
+                self.params.prob_noise,
+            )
+        # for alpha = 1, we have a faster implementation
+        elif self.params.alpha == 1:
+            t_traj, x_traj = _simulate_numba(
+                x,
+                t_delta,
+                self.next_event_rate,
+                self.noise_probability,
+                t_max,
+                self.params.num_agents,
+                self.params.num_opinions,
+                self.params.prob_imit,
+                self.params.prob_noise,
+                self.neighbor_list,
+            )
         else:
             prob_cumsum = self.degree_alpha / np.sum(self.degree_alpha)
             prob_cumsum = np.cumsum(prob_cumsum)
-            t_traj, x_traj = _simulate_numba_alpha(x, t_delta, self.next_event_rate, self.noise_probability, t_max,
-                                             self.params.num_agents, self.params.num_opinions, self.params.prob_imit,
-                                             self.params.prob_noise, self.neighbor_list, prob_cumsum)
+            t_traj, x_traj = _simulate_numba_alpha(
+                x,
+                t_delta,
+                self.next_event_rate,
+                self.noise_probability,
+                t_max,
+                self.params.num_agents,
+                self.params.num_opinions,
+                self.params.prob_imit,
+                self.params.prob_noise,
+                self.neighbor_list,
+                prob_cumsum,
+            )
 
         return np.array(t_traj), np.array(x_traj, dtype=int)
 
 
 @njit
-def _simulate_numba(x, t_delta, next_event_rate, noise_probability, t_max, num_agents, num_opinions,
-                    prob_imit, prob_noise, neighbor_list):
+def _simulate_numba(
+    x,
+    t_delta,
+    next_event_rate,
+    noise_probability,
+    t_max,
+    num_agents,
+    num_opinions,
+    prob_imit,
+    prob_noise,
+    neighbor_list,
+):
     x_traj = [np.copy(x)]
     t = 0
     t_traj = [0]
@@ -144,8 +189,17 @@ def _simulate_numba(x, t_delta, next_event_rate, noise_probability, t_max, num_a
 
 
 @njit
-def _simulate_numba_complete_network(x, t_delta, next_event_rate, noise_probability, t_max, num_agents, num_opinions,
-                                     prob_imit, prob_noise):
+def _simulate_numba_complete_network(
+    x,
+    t_delta,
+    next_event_rate,
+    noise_probability,
+    t_max,
+    num_agents,
+    num_opinions,
+    prob_imit,
+    prob_noise,
+):
     x_traj = [np.copy(x)]
     t = 0
     t_traj = [0]
@@ -194,8 +248,19 @@ def rand_index_numba(prob_cumsum) -> int:
 
 
 @njit
-def _simulate_numba_alpha(x, t_delta, next_event_rate, noise_probability, t_max, num_agents, num_opinions,
-                          prob_imit, prob_noise, neighbor_list, prob_cumsum):
+def _simulate_numba_alpha(
+    x,
+    t_delta,
+    next_event_rate,
+    noise_probability,
+    t_max,
+    num_agents,
+    num_opinions,
+    prob_imit,
+    prob_noise,
+    neighbor_list,
+    prob_cumsum,
+):
     x_traj = [np.copy(x)]
     t = 0
     t_traj = [0]
