@@ -17,13 +17,11 @@ class CNVM:
         """
         self.params = params
         # self.neighbor_list[i] = array of neighbors of node i
-        self.neighbor_list = List()
+        self.neighbor_list = None
         self.degree_alpha = None  # array containing d(i)^(1 - alpha)
-        self.next_event_rate = None
-        self.noise_probability = None
 
+        self.calculate_degree_alpha()
         self.calculate_neighbor_list()
-        self.calculate_rates()
 
     def calculate_neighbor_list(self):
         """
@@ -36,37 +34,42 @@ class CNVM:
                     np.array(list(self.params.network.neighbors(i)), dtype=int)
                 )
 
-    def calculate_rates(self):
+    def calculate_degree_alpha(self):
         """
-        Calculate and set self.degree_alpha, self.next_event_rate, and self.noise_probability.
+        Calculate and set self.degree_alpha.
         """
         if self.params.network is not None:
-            self.degree_alpha = np.array(
-                [d ** (1 - self.params.alpha) for _, d in self.params.network.degree()]
-            )
+            degrees = np.array([d for _, d in self.params.network.degree()])
+            if np.min(degrees) < 1:
+                raise ValueError("Isolated vertices in the network are not allowed.")
+            self.degree_alpha = degrees ** (1 - self.params.alpha)
         else:  # fully connected
             self.degree_alpha = np.ones(self.params.num_agents) * (
                 self.params.num_agents - 1
             ) ** (1 - self.params.alpha)
-
-        total_rate_noise = self.params.r_noise * self.params.num_agents
-        total_rate_imit = self.params.r_imit * np.sum(self.degree_alpha)
-        self.next_event_rate = 1 / (total_rate_noise + total_rate_imit)
-        self.noise_probability = total_rate_noise / (total_rate_imit + total_rate_noise)
 
     def update_network(self):
         """
         Update network from NetworkGenerator in params.
         """
         self.params.update_network_by_generator()
+        self.calculate_degree_alpha()
         self.calculate_neighbor_list()
-        self.calculate_rates()
 
     def update_rates(
         self, r: float | np.ndarray = None, r_tilde: float | np.ndarray = None
     ):
+        """
+        Update one or both rate parameters.
+
+        If only one argument is given, the other rate parameter stays the same.
+
+        Parameters
+        ----------
+        r : float | np.ndarray, optional
+        r_tilde : float | np.ndarray
+        """
         self.params.change_rates(r, r_tilde)
-        self.calculate_rates()
 
     def simulate(
         self, t_max: float, x_init: np.ndarray = None, len_output: int = None
@@ -81,6 +84,7 @@ class CNVM:
             Initial state, shape=(num_agents,). If no x_init is given, a random one is generated.
         len_output : int, optional
             Number of snapshots to output, as equidistantly spaced as possible between 0 and t_max.
+            Needs to be at least 2 (for initial value and final value).
 
         Returns
         -------
@@ -96,86 +100,107 @@ class CNVM:
             )
         x = np.copy(x_init).astype(int)
 
-        t_delta = 0 if len_output is None else t_max / len_output
+        t_delta = 0 if len_output is None else t_max / (len_output - 1)
 
-        # for complete networks, we have a faster implementation
+        # for complete networks, we have a separate implementation
         if self.params.network is None:
-            t_traj, x_traj = _simulate_numba_complete_network(
+            t_traj, x_traj = _numba_simulate_const_complete(
                 x,
                 t_delta,
-                self.next_event_rate,
-                self.noise_probability,
                 t_max,
-                self.params.num_agents,
                 self.params.num_opinions,
+                self.params.r_imit,
+                self.params.r_noise,
                 self.params.prob_imit,
                 self.params.prob_noise,
+                self.degree_alpha,
             )
-        # for alpha = 1, we have a faster implementation
-        elif self.params.alpha == 1:
-            t_traj, x_traj = _simulate_numba(
-                x,
-                t_delta,
-                self.next_event_rate,
-                self.noise_probability,
-                t_max,
-                self.params.num_agents,
-                self.params.num_opinions,
-                self.params.prob_imit,
-                self.params.prob_noise,
-                self.neighbor_list,
-            )
+
         else:
-            prob_cumsum = self.degree_alpha / np.sum(self.degree_alpha)
-            prob_cumsum = np.cumsum(prob_cumsum)
-            t_traj, x_traj = _simulate_numba_alpha(
+            # decide which version is likely faster
+            val = np.mean(self.degree_alpha / np.max(self.degree_alpha))
+            if 1 / val < np.log2(self.params.num_agents):
+                sim_function = _numba_simulate_const
+            else:
+                sim_function = _numba_simulate_log
+
+            t_traj, x_traj = sim_function(
                 x,
                 t_delta,
-                self.next_event_rate,
-                self.noise_probability,
                 t_max,
-                self.params.num_agents,
                 self.params.num_opinions,
+                self.neighbor_list,
+                self.params.r_imit,
+                self.params.r_noise,
                 self.params.prob_imit,
                 self.params.prob_noise,
-                self.neighbor_list,
-                prob_cumsum,
+                self.degree_alpha,
             )
 
         return np.array(t_traj), np.array(x_traj, dtype=int)
 
 
-@njit
-def _simulate_numba(
-    x,
-    t_delta,
-    next_event_rate,
-    noise_probability,
-    t_max,
-    num_agents,
-    num_opinions,
-    prob_imit,
-    prob_noise,
-    neighbor_list,
+@njit()
+def rand_index_numba(prob_cumsum) -> int:
+    """
+    Sample random index 0 <= i < len(prob_cumsum) according to probability distribution.
+
+    Parameters
+    ----------
+    prob_cumsum : np.ndarray
+        1D array containing the cumulative probabilities, i.e.,
+        the first entry is the probability of choosing index 0,
+        the second entry the probability of choosing index 0 or 1, and so on.
+        The last entry is 1.
+
+    Returns
+    -------
+    int
+    """
+    return np.searchsorted(prob_cumsum, np.random.random(), side="right")
+
+
+@njit()
+def _numba_simulate_log(
+    x: np.ndarray,
+    t_delta: float,
+    t_max: float,
+    num_opinions: int,
+    neighbor_list: list,
+    r_imit: float,
+    r_noise: float,
+    prob_imit: np.ndarray,
+    prob_noise: np.ndarray,
+    degree_alpha: np.ndarray,
 ):
+    """
+    CNVM simulation with log-complexity update.
+    """
+    # pre-calculate some values
+    num_agents = x.shape[0]
+    next_event_rate = 1 / (r_imit * np.sum(degree_alpha) + r_noise * num_agents)
+    noise_probability = r_noise * num_agents * next_event_rate
+    prob_cum_sum = np.cumsum(degree_alpha / np.sum(degree_alpha))
+
+    # initialize
     x_traj = [np.copy(x)]
     t = 0
     t_traj = [0]
 
+    # simulation loop
     t_store = t_delta
     while t < t_max:
         t += np.random.exponential(next_event_rate)  # time of next event
-        agent = np.random.randint(0, num_agents)  # agent of next event
         noise = True if np.random.random() < noise_probability else False
 
         if noise:
+            agent = np.random.randint(0, num_agents)  # agent of next event
             new_opinion = np.random.randint(0, num_opinions)
             if np.random.random() < prob_noise[x[agent], new_opinion]:
                 x[agent] = new_opinion
         else:
+            agent = rand_index_numba(prob_cum_sum)
             neighbors = neighbor_list[agent]
-            if len(neighbors) == 0:
-                continue
             new_opinion = x[np.random.choice(neighbors)]
             if np.random.random() < prob_imit[x[agent], new_opinion]:
                 x[agent] = new_opinion
@@ -188,22 +213,89 @@ def _simulate_numba(
     return t_traj, x_traj
 
 
-@njit
-def _simulate_numba_complete_network(
-    x,
-    t_delta,
-    next_event_rate,
-    noise_probability,
-    t_max,
-    num_agents,
-    num_opinions,
-    prob_imit,
-    prob_noise,
+@njit()
+def _numba_simulate_const(
+    x: np.ndarray,
+    t_delta: float,
+    t_max: float,
+    num_opinions: int,
+    neighbor_list: list,
+    r_imit: float,
+    r_noise: float,
+    prob_imit: np.ndarray,
+    prob_noise: np.ndarray,
+    degree_alpha: np.ndarray,
 ):
+    """
+    CNVM simulation with constant-complexity update.
+    """
+    # pre-calculate some values
+    num_agents = x.shape[0]
+    max_degree_alpha = np.max(degree_alpha)
+    next_event_rate = 1 / (r_imit * max_degree_alpha + r_noise) / num_agents
+    noise_probability = r_noise / (r_noise + r_imit * max_degree_alpha)
+    prob_factor = degree_alpha / max_degree_alpha
+
+    # initialize
     x_traj = [np.copy(x)]
     t = 0
     t_traj = [0]
 
+    # simulation loop
+    t_store = t_delta
+    while t < t_max:
+        t += np.random.exponential(next_event_rate)  # time of next event
+        agent = np.random.randint(0, num_agents)  # agent of next event
+        noise = True if np.random.random() < noise_probability else False
+
+        if noise:
+            new_opinion = np.random.randint(0, num_opinions)
+            if np.random.random() < prob_noise[x[agent], new_opinion]:
+                x[agent] = new_opinion
+        else:
+            neighbors = neighbor_list[agent]
+            new_opinion = x[np.random.choice(neighbors)]
+            if (
+                np.random.random()
+                < prob_imit[x[agent], new_opinion] * prob_factor[agent]
+            ):
+                x[agent] = new_opinion
+
+        if t >= t_store:
+            t_store += t_delta
+            x_traj.append(x.copy())
+            t_traj.append(t)
+
+    return t_traj, x_traj
+
+
+@njit()
+def _numba_simulate_const_complete(
+    x: np.ndarray,
+    t_delta: float,
+    t_max: float,
+    num_opinions: int,
+    r_imit: float,
+    r_noise: float,
+    prob_imit: np.ndarray,
+    prob_noise: np.ndarray,
+    degree_alpha: np.ndarray,
+):
+    """
+    CNVM simulation for complete networks.
+    """
+    # pre-calculate some values
+    num_agents = x.shape[0]
+    max_degree_alpha = degree_alpha[0]
+    next_event_rate = 1 / (r_imit * max_degree_alpha + r_noise) / num_agents
+    noise_probability = r_noise / (r_noise + r_imit * max_degree_alpha)
+
+    # initialize
+    x_traj = [np.copy(x)]
+    t = 0
+    t_traj = [0]
+
+    # simulation loop
     t_store = t_delta
     while t < t_max:
         t += np.random.exponential(next_event_rate)  # time of next event
@@ -219,68 +311,6 @@ def _simulate_numba_complete_network(
             while neighbor == agent:
                 neighbor = np.random.randint(0, num_agents)
             new_opinion = x[neighbor]
-            if np.random.random() < prob_imit[x[agent], new_opinion]:
-                x[agent] = new_opinion
-
-        if t >= t_store:
-            t_store += t_delta
-            x_traj.append(x.copy())
-            t_traj.append(t)
-
-    return t_traj, x_traj
-
-
-@njit
-def rand_index_numba(prob_cumsum) -> int:
-    """
-    Sample random index 0 <= i < len(prob_cumsum) according to probability distribution.
-
-    Parameters
-    ----------
-    prob_cumsum : np.ndarray
-        1D array containing the cumulative probabilities, i.e., the first entry is the probability of choosing index 0,
-        the second entry the probability of choosing index 0 or 1, and so on. The last entry is 1.
-    Returns
-    -------
-    int
-    """
-    return np.searchsorted(prob_cumsum, np.random.random(), side="right")
-
-
-@njit
-def _simulate_numba_alpha(
-    x,
-    t_delta,
-    next_event_rate,
-    noise_probability,
-    t_max,
-    num_agents,
-    num_opinions,
-    prob_imit,
-    prob_noise,
-    neighbor_list,
-    prob_cumsum,
-):
-    x_traj = [np.copy(x)]
-    t = 0
-    t_traj = [0]
-
-    t_store = t_delta
-    while t < t_max:
-        t += np.random.exponential(next_event_rate)  # time of next event
-        noise = True if np.random.random() < noise_probability else False
-
-        if noise:
-            agent = np.random.randint(0, num_agents)  # agent of next event
-            new_opinion = np.random.randint(0, num_opinions)
-            if np.random.random() < prob_noise[x[agent], new_opinion]:
-                x[agent] = new_opinion
-        else:
-            agent = rand_index_numba(prob_cumsum)
-            neighbors = neighbor_list[agent]
-            if len(neighbors) == 0:
-                continue
-            new_opinion = x[np.random.choice(neighbors)]
             if np.random.random() < prob_imit[x[agent], new_opinion]:
                 x[agent] = new_opinion
 
