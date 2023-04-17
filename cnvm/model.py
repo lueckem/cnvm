@@ -141,13 +141,13 @@ class CNVM:
 
 
 @njit()
-def rand_index_numba(prob_cumsum) -> int:
+def rand_index_numba(prob_cum_sum) -> int:
     """
     Sample random index 0 <= i < len(prob_cumsum) according to probability distribution.
 
     Parameters
     ----------
-    prob_cumsum : np.ndarray
+    prob_cum_sum : np.ndarray
         1D array containing the cumulative probabilities, i.e.,
         the first entry is the probability of choosing index 0,
         the second entry the probability of choosing index 0 or 1, and so on.
@@ -157,7 +157,7 @@ def rand_index_numba(prob_cumsum) -> int:
     -------
     int
     """
-    return np.searchsorted(prob_cumsum, np.random.random(), side="right")
+    return np.searchsorted(prob_cum_sum, np.random.random(), side="right")
 
 
 @njit()
