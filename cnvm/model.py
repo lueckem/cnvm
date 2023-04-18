@@ -252,13 +252,10 @@ def _numba_simulate_const(
             new_opinion = np.random.randint(0, num_opinions)
             if np.random.random() < prob_noise[x[agent], new_opinion]:
                 x[agent] = new_opinion
-        else:
+        elif np.random.random() < prob_factor[agent]:
             neighbors = neighbor_list[agent]
             new_opinion = x[np.random.choice(neighbors)]
-            if (
-                np.random.random()
-                < prob_imit[x[agent], new_opinion] * prob_factor[agent]
-            ):
+            if np.random.random() < prob_imit[x[agent], new_opinion]:
                 x[agent] = new_opinion
 
         if t >= t_store:
