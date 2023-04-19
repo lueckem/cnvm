@@ -126,8 +126,6 @@ def _sample_many_runs_subprocess(
 
     for j in range(num_initial_states):
         for i in range(num_runs):
-            if model.params.network_generator is not None:
-                model.update_network()
             t, x = model.simulate(
                 t_max, len_output=4 * num_timesteps, x_init=initial_states[j]
             )
