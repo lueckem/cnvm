@@ -52,7 +52,7 @@ def sample_many_runs(
     t_out = np.linspace(0, t_max, num_timesteps)
 
     # no multiprocessing
-    if n_jobs is None:
+    if n_jobs is None or n_jobs == 1:
         x_out = _sample_many_runs_subprocess(
             params, initial_states, t_max, num_timesteps, num_runs, collective_variable
         )
@@ -62,46 +62,41 @@ def sample_many_runs(
     if n_jobs == -1:
         n_jobs = mp.cpu_count()
 
-    if initial_states.shape[0] == 1:  # parallelization along num_runs
-        num_runs_per_process = int(np.ceil(num_runs / n_jobs))
-        with mp.Pool(n_jobs) as pool:
-            x_out = pool.starmap(
-                _sample_many_runs_subprocess,
-                [
-                    (
-                        params,
-                        initial_states,
-                        t_max,
-                        num_timesteps,
-                        num_runs_per_process,
-                        collective_variable,
-                    )
-                ]
-                * n_jobs,
+    if num_runs >= initial_states.shape[0]:  # parallelization along runs
+        chunks = split_runs(num_runs, n_jobs)
+        processes = [
+            (
+                params,
+                initial_states,
+                t_max,
+                num_timesteps,
+                chunk,
+                collective_variable,
             )
-            x_out = np.concatenate(x_out, axis=1)
-            x_out = x_out[:, :num_runs, :, :]
-            return t_out, x_out
+            for chunk in chunks
+        ]
+        concat_axis = 1
 
-    # parallelization along num_initial states
-    initial_states_subprocesses = np.array_split(initial_states, n_jobs)
+    else:  # parallelization along initial states
+        chunks = np.array_split(initial_states, n_jobs)
+        processes = [
+            (
+                params,
+                chunk,
+                t_max,
+                num_timesteps,
+                num_runs,
+                collective_variable,
+            )
+            for chunk in chunks
+        ]
+        concat_axis = 0
+
     with mp.Pool(n_jobs) as pool:
-        x_out = pool.starmap(
-            _sample_many_runs_subprocess,
-            [
-                (
-                    params,
-                    initial_states_subprocesses[i],
-                    t_max,
-                    num_timesteps,
-                    num_runs,
-                    collective_variable,
-                )
-                for i in range(n_jobs)
-            ],
-        )
-        x_out = np.concatenate(x_out, axis=0)
-        return t_out, x_out
+        x_out = pool.starmap(_sample_many_runs_subprocess, processes)
+    x_out = np.concatenate(x_out, axis=concat_axis)
+
+    return t_out, x_out
 
 
 def _sample_many_runs_subprocess(
@@ -135,6 +130,15 @@ def _sample_many_runs_subprocess(
             else:
                 x_out[j, i, :, :] = collective_variable(x[t_ind, :])
     return x_out
+
+
+def split_runs(num_runs: int, num_chunks: int) -> np.ndarray:
+    """
+    Split num_runs into num_chunks approximately equal chunks.
+    """
+    chunks = np.ones(num_chunks, dtype=int) * (num_runs // num_chunks)
+    chunks[: (num_runs % num_chunks)] += 1
+    return chunks
 
 
 def calc_rre_traj(
