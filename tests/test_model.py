@@ -39,6 +39,11 @@ class TestModel(TestCase):
     def test_output(self):
         model = CNVM(self.params_complete)
         t_max = 100
+        t, x = model.simulate(t_max)
+        self.assertEqual(t[0], 0)
+        self.assertTrue(t[-1] >= t_max)
+        self.assertEqual(t.shape[0], x.shape[0])
+
         t, x = model.simulate(t_max, len_output=10)
         self.assertEqual(t.shape, (10,))
         self.assertEqual(x.shape, (10, self.num_agents))
@@ -46,6 +51,11 @@ class TestModel(TestCase):
         self.assertTrue(t[-1] >= t_max)
 
         model = CNVM(self.params_network)
+        t, x = model.simulate(t_max)
+        self.assertEqual(t[0], 0)
+        self.assertTrue(t[-1] >= t_max)
+        self.assertEqual(t.shape[0], x.shape[0])
+
         t, x = model.simulate(t_max, len_output=10)
         self.assertEqual(t.shape, (10,))
         self.assertEqual(x.shape, (10, self.num_agents))
@@ -54,6 +64,12 @@ class TestModel(TestCase):
 
         x_init = np.ones(self.num_agents)
         model = CNVM(self.params_generator)
+        t, x = model.simulate(t_max, x_init=x_init)
+        self.assertEqual(t[0], 0)
+        self.assertTrue(t[-1] >= t_max)
+        self.assertEqual(t.shape[0], x.shape[0])
+        self.assertTrue(np.allclose(x[0], x_init))
+
         t, x = model.simulate(t_max, x_init, len_output=10)
         self.assertEqual(t.shape, (10,))
         self.assertEqual(x.shape, (10, self.num_agents))
