@@ -24,10 +24,13 @@ pytest-cov = "^4.0.0"
 black = "^23.3.0"
 
 
-[tool.poetry.group.dev.dependencies]
+[tool.poetry.group.notebooks]
+optional = true
+
+[tool.poetry.group.notebooks.dependencies]
 ipykernel = "^6.22.0"
+
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
