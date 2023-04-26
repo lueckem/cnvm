@@ -22,9 +22,14 @@ class ErdosRenyiGenerator:
         self.p = p
 
     def __call__(self) -> nx.Graph:
-        if self.p > 0.2:
-            return nx.erdos_renyi_graph(self.num_agents, self.p)
-        return nx.fast_gnp_random_graph(self.num_agents, self.p)
+        gnp_fun = nx.erdos_renyi_graph if self.p > 0.2 else nx.fast_gnp_random_graph
+        i = 0
+        while i < 10:
+            network = gnp_fun(self.num_agents, self.p)
+            if nx.is_connected(network):
+                return network
+            i += 1
+        raise RuntimeError("Could not generate a connected graph.")
 
     def __repr__(self) -> str:
         return f"Erdos-Renyi random graph with p={self.p} on {self.num_agents} nodes"
@@ -72,7 +77,9 @@ class WattsStrogatzGenerator:
         self.p = p
 
     def __call__(self) -> nx.Graph:
-        return nx.watts_strogatz_graph(self.num_agents, self.num_neighbors, self.p)
+        return nx.connected_watts_strogatz_graph(
+            self.num_agents, self.num_neighbors, self.p
+        )
 
     def __repr__(self) -> str:
         return f"Watts-Strogatz random graph on {self.num_agents} nodes"
@@ -93,7 +100,7 @@ class StochasticBlockGenerator:
         self.block_size = int(num_agents / self.num_blocks)
         self.num_agents = self.block_size * self.num_blocks
 
-    def __call__(self) -> nx.Graph:
+    def _sample_adj_matrix(self):
         adj_matrix = np.zeros((self.num_agents, self.num_agents))
         for i in range(self.num_blocks):
             for j in range(i + 1):
@@ -109,8 +116,17 @@ class StochasticBlockGenerator:
         # only keep the lower triangle and symmetrize
         adj_matrix = np.tril(adj_matrix, -1)
         adj_matrix = adj_matrix + np.tril(adj_matrix).T
+        return adj_matrix
 
-        return nx.from_numpy_array(adj_matrix)
+    def __call__(self) -> nx.Graph:
+        i = 0
+        while i < 10:
+            adj_mat = self._sample_adj_matrix()
+            network = nx.from_numpy_array(adj_mat)
+            if nx.is_connected(network):
+                return network
+            i += 1
+        raise RuntimeError("Could not generate a connected graph.")
 
     def __repr__(self) -> str:
         return f"stochastic block model with {self.num_blocks} blocks and {self.num_agents} nodes."
@@ -165,7 +181,14 @@ class BinomialWattsStrogatzGenerator:
         self.num_neighbors = num_neighbors
         self.p_rewire = p_rewire
 
-    def __call__(self) -> nx.Graph:
+        self.p_insert = (
+            p_rewire * num_neighbors / (num_agents - 1 - (1 - p_rewire) * num_neighbors)
+        )
+        self.gnp_fun = (
+            nx.erdos_renyi_graph if self.p_insert > 0.2 else nx.fast_gnp_random_graph
+        )
+
+    def _sample_network(self):
         network = nx.watts_strogatz_graph(self.num_agents, self.num_neighbors, 0)
 
         # remove edges
@@ -174,18 +197,18 @@ class BinomialWattsStrogatzGenerator:
         edges = edges[idx_to_keep, :]
 
         # insert edges
-        p_insert = (
-            self.p_rewire
-            * self.num_neighbors
-            / (self.num_agents - 1 - (1 - self.p_rewire) * self.num_neighbors)
-        )
-        if p_insert > 0.2:
-            network = nx.erdos_renyi_graph(self.num_agents, p_insert)
-        else:
-            network = nx.fast_gnp_random_graph(self.num_agents, p_insert)
+        network = self.gnp_fun(self.num_agents, self.p_insert)
         network.add_edges_from(edges)
-
         return network
+
+    def __call__(self) -> nx.Graph:
+        i = 0
+        while i < 10:
+            network = self._sample_network()
+            if nx.is_connected(network):
+                return network
+            i += 1
+        raise RuntimeError("Could not generate a connected graph.")
 
     def __repr__(self) -> str:
         return f"Binomial Watts-Strogatz graph on {self.num_agents} nodes with p_rewire={self.p_rewire}"
