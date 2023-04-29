@@ -60,6 +60,8 @@ t, x = model.simulate(t_max=50, x_init=x_init)
 ```
 The output `t` contains the time points of state jumps and `x` the system states after each jump.
 
-A more detailed overview of the package can be found in the jupyter notebook [*examples/tutorial.ipynb.*](examples/tutorial.ipynb.)
+A more detailed overview of the package can be found in the jupyter notebook [*examples/tutorial.ipynb*](examples/tutorial.ipynb).
+Moreover, the behavior of the CNVM in the mean-field limit is discussed in [*examples/mean_field.ipynb*](examples/mean_field.ipynb).
+In the notebook [*examples/SIS-model.ipynb*](examples/SIS-model.ipynb) the existence of an epidemic threshold for the SIS model in epidemiology is demonstrated.
 
 ## Implementation details
