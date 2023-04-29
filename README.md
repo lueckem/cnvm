@@ -24,9 +24,8 @@ Each node is endowed with one of $M$ discrete opinions. Thus, the system state i
 Each node's opinion $x_i \in \{1,\dots,M\}$ changes over time according to a continuous-time Markov chain (Markov jump process).
 Given the current system state $x$, the generator matrix $Q^i$ of the continuous-time Markov chain associated with node $i$ is defined as
 
-```math
-Q^i \in \mathbb{R}^{M \times M},\quad (Q^i)_{m,n} := r_{m,n} \frac{d_{i,n}(x)}{(d_i)^\alpha} + \tilde{r}_{m,n},\ m\neq n,
-```
+$$ Q^i \in \mathbb{R}^{M \times M},\quad (Q^i)_ {m,n} := r_{m,n} \frac{d_ {i,n}(x)}{(d_i)^\alpha} + \tilde{r}_ {m,n},\ m\neq n, $$
+
 where $d_{i,n}(x)$ denotes the number of neighbors of node $i$ with opinion $n$ and $d_i$ is the degree of node $i$. The matrices $r, \tilde{r} \in \mathbb{R}^{M \times M}$ and $\alpha \in \mathbb{R}$ are model parameters.
 
 Thus, the transition rates $(Q^i)_ {m,n}$ consist of two components.
