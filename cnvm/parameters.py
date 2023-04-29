@@ -47,7 +47,7 @@ class Parameters:
 
     def __post_init__(self):
         # rates
-        self.tidy_up_rates()
+        self._tidy_up_rates()
 
         # networks
         if self.network_generator is not None:
@@ -60,7 +60,7 @@ class Parameters:
                 "Either a network or a NetworkGenerator or num_agents has to be specified."
             )
 
-    def tidy_up_rates(self):
+    def _tidy_up_rates(self):
         """
         Check if the given rate parameters are valid and set up the other rate parameters accordingly.
         """
@@ -121,7 +121,7 @@ class Parameters:
             self.r = r
         if r_tilde is not None:
             self.r_tilde = r_tilde
-        self.tidy_up_rates()
+        self._tidy_up_rates()
 
     def get_network(self) -> nx.Graph:
         """

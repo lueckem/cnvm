@@ -20,10 +20,10 @@ class CNVM:
         self.neighbor_list = None
         self.degree_alpha = None  # array containing d(i)^(1 - alpha)
 
-        self.calculate_degree_alpha()
-        self.calculate_neighbor_list()
+        self._calculate_degree_alpha()
+        self._calculate_neighbor_list()
 
-    def calculate_neighbor_list(self):
+    def _calculate_neighbor_list(self):
         """
         Calculate and set self.neighbor_list.
         """
@@ -34,7 +34,7 @@ class CNVM:
                     np.array(list(self.params.network.neighbors(i)), dtype=int)
                 )
 
-    def calculate_degree_alpha(self):
+    def _calculate_degree_alpha(self):
         """
         Calculate and set self.degree_alpha.
         """
@@ -53,8 +53,8 @@ class CNVM:
         Update network from NetworkGenerator in params.
         """
         self.params.update_network_by_generator()
-        self.calculate_degree_alpha()
-        self.calculate_neighbor_list()
+        self._calculate_degree_alpha()
+        self._calculate_neighbor_list()
 
     def update_rates(
         self, r: float | np.ndarray = None, r_tilde: float | np.ndarray = None
@@ -141,7 +141,7 @@ class CNVM:
 
 
 @njit()
-def rand_index_numba(prob_cum_sum) -> int:
+def _rand_index_numba(prob_cum_sum) -> int:
     """
     Sample random index 0 <= i < len(prob_cumsum) according to probability distribution.
 
@@ -199,7 +199,7 @@ def _numba_simulate_log(
             if np.random.random() < prob_noise[x[agent], new_opinion]:
                 x[agent] = new_opinion
         else:
-            agent = rand_index_numba(prob_cum_sum)
+            agent = _rand_index_numba(prob_cum_sum)
             neighbors = neighbor_list[agent]
             new_opinion = x[np.random.choice(neighbors)]
             if np.random.random() < prob_imit[x[agent], new_opinion]:

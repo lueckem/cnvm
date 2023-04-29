@@ -91,8 +91,13 @@ class WattsStrogatzGenerator:
 class StochasticBlockGenerator:
     def __init__(self, num_agents: int, p_matrix: np.ndarray):
         """
-        p_matrix is a (n x n)-matrix.
         Creates n stochastic blocks, block i is randomly connected to block j with edge density p_matrix[i, j].
+
+        Parameters
+        ----------
+        num_agents : int
+        p_matrix : np.ndarray
+            (n x n) matrix of edge probabilities.
         """
         self.p_matrix = p_matrix
 
@@ -176,6 +181,12 @@ class BinomialWattsStrogatzGenerator:
         Then iterate through all the possible edges that are not present and insert with such a probability,
         that in expectation the resulting graph has the same number of edges again.
         For p=1, this yields the binomial Erdös-Renyi graph G(N, K/N).
+
+        Parameters
+        ----------
+        num_agents : int
+        num_neighbors : int
+        p_rewire : float
         """
         self.num_agents = num_agents
         self.num_neighbors = num_neighbors

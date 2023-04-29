@@ -45,7 +45,7 @@ class TestSampleManyRuns(TestCase):
 
     def test_split_runs(self):
         num_runs, num_chunks = 20, 6
-        chunks = cu.split_runs(num_runs, num_chunks)
+        chunks = cu._split_runs(num_runs, num_chunks)
         self.assertTrue(np.allclose(chunks, [4, 4, 3, 3, 3, 3]))
 
     def test_parallelization_runs(self):
