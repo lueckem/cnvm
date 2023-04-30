@@ -13,6 +13,7 @@ keywords = [
     "statistical physics",
     "agent-based model",
     "epidemiology",
+    "interacting particle system"
 ]
 classifiers = [
     "Intended Audience :: Science/Research",

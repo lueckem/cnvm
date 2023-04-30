@@ -32,7 +32,8 @@ Thus, the transition rates $(Q^i)_ {m,n}$ consist of two components.
 The first component $r_{m,n} \frac{d_{i,n}(x)}{(d_i)^\alpha}$ describes at which rate node $i$ gets ``infected'' by nodes in its neighborhood.
 The second part $\tilde{r}_{m,n}$ describes transitions that are independent from the neighborhood.
 
-It should be noted that after a node switches its opinion due to the above dynamics, the system state $x$ changes and hence all the generator matrices $Q^i$ may change as well.
+The parameter $\alpha$ can be used to tune the type of interaction. For $\alpha=1$ the transition rates are normalized because $d_{i,n}(x)/d_i \in [0,1]$.
+The setting $\alpha=0$ however yields a linear increase of the transition rates with the number of ``infected'' neighbors, and is often used in epidemic modeling, e.g., the contact process or SIS model.
 
 ## Basic Usage
 First define the model paramaters:
@@ -68,3 +69,5 @@ Moreover, the behavior of the CNVM in the mean-field limit is discussed in [*exa
 In the notebook [*examples/SIS-model.ipynb*](examples/SIS-model.ipynb) the existence of an epidemic threshold for the SIS model in epidemiology is demonstrated.
 
 ## Implementation details
+
+After a node switches its opinion due to the above dynamics, the system state $x$ changes and hence all the generator matrices $Q^i$ may change as well.
