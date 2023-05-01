@@ -29,11 +29,11 @@ $$ Q^i \in \mathbb{R}^{M \times M},\quad (Q^i)_ {m,n} := r_{m,n} \frac{d_ {i,n}(
 where $d_{i,n}(x)$ denotes the number of neighbors of node $i$ with opinion $n$ and $d_i$ is the degree of node $i$. The matrices $r, \tilde{r} \in \mathbb{R}^{M \times M}$ and $\alpha \in \mathbb{R}$ are model parameters.
 
 Thus, the transition rates $(Q^i)_ {m,n}$ consist of two components.
-The first component $r_{m,n} \frac{d_{i,n}(x)}{(d_i)^\alpha}$ describes at which rate node $i$ gets ``infected'' by nodes in its neighborhood.
+The first component $r_{m,n} \frac{d_{i,n}(x)}{(d_i)^\alpha}$ describes at which rate node $i$ gets "infected" by nodes in its neighborhood.
 The second part $\tilde{r}_{m,n}$ describes transitions that are independent from the neighborhood.
 
 The parameter $\alpha$ can be used to tune the type of interaction. For $\alpha=1$ the transition rates are normalized because $d_{i,n}(x)/d_i \in [0,1]$.
-The setting $\alpha=0$ however yields a linear increase of the transition rates with the number of ``infected'' neighbors, and is often used in epidemic modeling, e.g., the contact process or SIS model.
+The setting $\alpha=0$ however yields a linear increase of the transition rates with the number of "infected" neighbors, and is often used in epidemic modeling, e.g., the contact process or SIS model.
 
 ## Basic Usage
 First define the model paramaters:
@@ -70,4 +70,23 @@ In the notebook [*examples/SIS-model.ipynb*](examples/SIS-model.ipynb) the exist
 
 ## Implementation details
 
-After a node switches its opinion due to the above dynamics, the system state $x$ changes and hence all the generator matrices $Q^i$ may change as well.
+After a node switches its opinion, the system state $x$ changes and hence all the generator matrices $Q^i$ may change as well.
+We apply a Gillespie-like algorithm to generate statistically correct samples of the process.
+We start a Poisson clock for each of the transitions and as soon as the first transition occurs we modify the generator matrices and reset all the clocks.
+To do this efficiently, it is advantageous to transform the rate matrices $r$ and $\tilde{r}$ into an equivalent format consisting of base rates $r_0, \tilde{r}_0 > 0$ and probability matrices $p, \tilde{p} \in [0, 1]^{M\times M}$ such that
+
+$$ r_{m,n} = r_0 p_{m,n}, \quad \tilde{r}_{m,n} = \tilde{r}_0 \tilde{p}_{m,n} / M. $$
+
+Furthermore, we define the cumulative rates
+
+$$ \lambda := \sum_{i=1}^N r_0 d_i^{(1-\alpha)},\quad \tilde{\lambda} := N \tilde{r}_0,\quad \hat{\lambda} := \lambda + \tilde{\lambda}. $$
+
+Then the simulation loop is given by
+1. Draw time of next jump event from exponential distribution $\exp(\hat{\lambda})$. Go to 2.
+2. With probability $\lambda / \hat{\lambda}$ the event is due to infection, in which case go to 3.
+Else it is due to noise, go to 4.
+3. Draw agent $i$ from $\{1,\dots,N\}$ according to distribution $\mathbb{P}(i = j) = r_0 d_j^{(1-\alpha)} / \lambda$. Let $m$ denote the state of agent $i$.
+Draw $n$ from $\{1,\dots,M\}$ according to $\mathbb{P}(n = k) = d_{i,k}(x) / d_i$.
+With probability $p_{m,n}$ agent $i$ switches to state $n$. Go back to 1.
+4. Draw $i$ from $\{1,\dots,N\}$ and $n$ from $\{1,\dots,M\}$ uniformly. Let $m$ denote the state of agent $i$.
+With probability $\tilde{p}_{m,n}$ agent $i$ switches to state $n$. Go back to 1.
