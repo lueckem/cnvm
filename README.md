@@ -79,7 +79,7 @@ We apply a Gillespie-like algorithm to generate statistically correct samples of
 We start a Poisson clock for each possible transition and as soon as the first transition occurs we modify the generator matrices and reset all the clocks.
 To do this efficiently, it is advantageous to transform the rate matrices $r$ and $\tilde{r}$ into an equivalent format consisting of base rates $r_0, \tilde{r}_0 > 0$ and probability matrices $p, \tilde{p} \in [0, 1]^{M\times M}$ such that
 
-$$ r_{m,n} = r_0 p_{m,n}, \quad \tilde{r}_{m,n} = \tilde{r}_0 \tilde{p}_{m,n} / M. $$
+$$ r_{m,n} = r_0 p_ {m,n}, \quad \tilde{r}_ {m,n} = \tilde{r}_ 0 \tilde{p}_ {m,n} / M. $$
 
 Furthermore, we define the cumulative rates
 
