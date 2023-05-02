@@ -33,7 +33,7 @@ class OpinionShares:
         idx_to_return: Union[int, np.ndarray] = None,
     ):
         """
-        Calculate the opinion counts/ percentages.
+        Calculate the opinion counts/ percentages, i.e., how often each opinion is present in x.
 
         Parameters
         ----------
@@ -45,6 +45,7 @@ class OpinionShares:
             Negative weights are allowed.
         idx_to_return : Union[int, np.ndarray], optional
             Shares of which opinions to return. Default: all opinions.
+            Example: idx_to_return=0 means that only the count of opinion 0 is returned.
         """
         self.num_opinions = num_opinions
         self.normalize = normalize

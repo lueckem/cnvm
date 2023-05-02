@@ -18,6 +18,14 @@ class NetworkGenerator(Protocol):
 
 class ErdosRenyiGenerator:
     def __init__(self, num_agents: int, p: float):
+        """
+        Generate Erdös-Renyi (binomial) random graphs.
+
+        Parameters
+        ----------
+        num_agents : int
+        p : float
+        """
         self.num_agents = num_agents
         self.p = p
 
@@ -40,6 +48,14 @@ class ErdosRenyiGenerator:
 
 class RandomRegularGenerator:
     def __init__(self, num_agents: int, d: int):
+        """
+        Generate random regular graphs.
+
+        Parameters
+        ----------
+        num_agents : int
+        d : int
+        """
         self.num_agents = num_agents
         self.d = d
 
@@ -57,6 +73,14 @@ class RandomRegularGenerator:
 
 class BarabasiAlbertGenerator:
     def __init__(self, num_agents: int, m: int):
+        """
+        Generate random scale-free graphs using the Barabasi-Albert model.
+
+        Parameters
+        ----------
+        num_agents : int
+        m : int
+        """
         self.num_agents = num_agents
         self.m = m
 
@@ -72,6 +96,15 @@ class BarabasiAlbertGenerator:
 
 class WattsStrogatzGenerator:
     def __init__(self, num_agents: int, num_neighbors: int, p: float):
+        """
+        Create random small-world networks using the Watts-Strogatz model.
+
+        Parameters
+        ----------
+        num_agents : int
+        num_neighbors : int
+        p : float
+        """
         self.num_agents = num_agents
         self.num_neighbors = num_neighbors
         self.p = p
@@ -142,6 +175,14 @@ class StochasticBlockGenerator:
 
 class GridGenerator:
     def __init__(self, num_agents: int, periodic: bool = False):
+        """
+        Generate lattice graph in 2 dimensions.
+
+        Parameters
+        ----------
+        num_agents : int
+        periodic : bool, optional
+        """
         self.num_agents = num_agents
         self.dim = 2  # only implemented for 2D grids for now
         self.periodic = periodic

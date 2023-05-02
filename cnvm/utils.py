@@ -143,7 +143,7 @@ def calc_rre_traj(
     """
     Solve the RRE given by parameters, starting from c_0, up to time t_max.
 
-    Outputs timepoints (shape=(?,)) and c (shape=(?, num_opinions)).
+    Solves the ODE using scipy's "solve_ivp".
 
     Parameters
     ----------
@@ -151,7 +151,9 @@ def calc_rre_traj(
     c_0 : np.ndarray
         Initial state, shape=(num_opinions,)
     t_max : float
+        End time.
     t_eval : np.ndarray, optional
+        Time points, at which the solution should be evaluated.
 
     Returns
     -------
