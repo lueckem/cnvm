@@ -1,11 +1,11 @@
 [![build](https://github.com/lueckem/cnvm/actions/workflows/build.yml/badge.svg)](https://github.com/lueckem/cnvm/actions/workflows/build.yml)
 
 # Continuous-time noisy voter model (CNVM)
-This package provides an efficient implementation of the CNVM, which is a dynamical system on a network of interacting *agents*.
-It can be used to simulate how opinions about certain issues develop over time within a population of agents,
-or how an infectious disease spreads.
+This package provides an efficient implementation of the CNVM, which is a dynamical system consisting a network of interacting *agents*.
+It can be used to simulate how opinions about certain issues develop over time within a population, or how an infectious disease spreads.
 Although the interaction rules of the CNVM are quite simple, the resulting dynamics is complex and rich.
 There are numerous papers studying the behavior of the CNVM or similar voter models.
+In this package the simulation loop is just-in-time compiled using `numba`, which makes performance comparable with languages like C++.
 
 ## Installation
 Install the CNVM package from the PyPI repository
@@ -29,11 +29,13 @@ $$ Q^i \in \mathbb{R}^{M \times M},\quad (Q^i)_ {m,n} := r_{m,n} \frac{d_ {i,n}(
 where $d_{i,n}(x)$ denotes the number of neighbors of node $i$ with opinion $n$ and $d_i$ is the degree of node $i$. The matrices $r, \tilde{r} \in \mathbb{R}^{M \times M}$ and $\alpha \in \mathbb{R}$ are model parameters.
 
 Thus, the transition rates $(Q^i)_ {m,n}$ consist of two components.
-The first component $r_{m,n} \frac{d_{i,n}(x)}{(d_i)^\alpha}$ describes at which rate node $i$ gets "infected" by nodes in its neighborhood.
-The second part $\tilde{r}_{m,n}$ describes transitions that are independent from the neighborhood.
+The first component $r_{m,n} d_{i,n}(x)/ (d_i)^\alpha$ describes at which rate node $i$ gets "infected" with opinion $n$ by nodes in its neighborhood.
+The second part $\tilde{r}_{m,n}$ describes transitions that are independent from the neighborhood (e.g., noise).
 
 The parameter $\alpha$ can be used to tune the type of interaction. For $\alpha=1$ the transition rates are normalized because $d_{i,n}(x)/d_i \in [0,1]$.
 The setting $\alpha=0$ however yields a linear increase of the transition rates with the number of "infected" neighbors, and is often used in epidemic modeling, e.g., the contact process or SIS model.
+
+In the CNVM the network itself is static, i.e., the nodes and edges do not change over time.
 
 ## Basic Usage
 First define the model paramaters:
@@ -42,9 +44,10 @@ from cnvm import Parameters
 import numpy as np
 import networkx as nx
 
+num_nodes = 100
 r = np.array([[0, .8], [.2, 0]])
 r_tilde = np.array([[0, .1], [.2, 0]])
-network = nx.erdos_renyi_graph(n=100, p=0.1)
+network = nx.erdos_renyi_graph(n=num_nodes, p=0.1)
 
 params = Parameters(
     num_opinions=2,
@@ -54,11 +57,11 @@ params = Parameters(
     alpha=1,
 )
 ```
-Then simulate the model:
+Then simulate the model, starting in state `x_init`:
 ```python
 from cnvm import CNVM
 
-x_init = np.random.randint(0, 2, 100)
+x_init = np.random.randint(0, 2, num_nodes)
 model = CNVM(params)
 t, x = model.simulate(t_max=50, x_init=x_init)
 ```
@@ -72,7 +75,7 @@ In the notebook [*examples/SIS-model.ipynb*](examples/SIS-model.ipynb) the exist
 
 After a node switches its opinion, the system state $x$ changes and hence all the generator matrices $Q^i$ may change as well.
 We apply a Gillespie-like algorithm to generate statistically correct samples of the process.
-We start a Poisson clock for each of the transitions and as soon as the first transition occurs we modify the generator matrices and reset all the clocks.
+We start a Poisson clock for each possible transition and as soon as the first transition occurs we modify the generator matrices and reset all the clocks.
 To do this efficiently, it is advantageous to transform the rate matrices $r$ and $\tilde{r}$ into an equivalent format consisting of base rates $r_0, \tilde{r}_0 > 0$ and probability matrices $p, \tilde{p} \in [0, 1]^{M\times M}$ such that
 
 $$ r_{m,n} = r_0 p_{m,n}, \quad \tilde{r}_{m,n} = \tilde{r}_0 \tilde{p}_{m,n} / M. $$
