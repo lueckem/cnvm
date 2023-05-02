@@ -8,7 +8,8 @@ There are numerous papers studying the behavior of the CNVM or similar voter mod
 In this package the simulation loop is just-in-time compiled using `numba`, which makes performance comparable with languages like C++.
 
 ## Installation
-Install the CNVM package from the PyPI repository
+The CNVM package requires Python 3.9 or 3.10.
+Install from the PyPI repository:
 ```
 pip install cnvm
 ```
