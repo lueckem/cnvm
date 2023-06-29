@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cnvm"
-version = "0.1.0"
+version = "0.1.1"
 description = "Continuous-time Noisy Voter Model (CNVM) of social dynamics."
 license = "GPL-3.0-or-later"
 authors = ["Marvin Lücke"]
@@ -44,6 +44,7 @@ optional = true
 [tool.poetry.group.notebooks.dependencies]
 ipykernel = "^6.22.0"
 matplotlib = "^3.7.1"
+jupyter = "^1.0.0"
 
 
 [build-system]
