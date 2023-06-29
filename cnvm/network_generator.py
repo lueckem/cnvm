@@ -1,6 +1,7 @@
 from typing import Protocol
 import networkx as nx
 import numpy as np
+import time
 
 
 class NetworkGenerator(Protocol):
@@ -17,27 +18,37 @@ class NetworkGenerator(Protocol):
 
 
 class ErdosRenyiGenerator:
-    def __init__(self, num_agents: int, p: float):
+    def __init__(self, num_agents: int, p: float, max_sample_time: float = 10):
         """
         Generate Erdös-Renyi (binomial) random graphs.
+
+        The random graph may contain isolated vertices, which is not allowed.
+        In that case, the Generator samples until a valid network is found,
+        or until max_sample_time seconds pass, in which case a RuntimeError is raised.
 
         Parameters
         ----------
         num_agents : int
         p : float
+        max_sample_time : float, optional
+            In seconds.
         """
         self.num_agents = num_agents
         self.p = p
+        self.max_sample_time = max_sample_time
 
     def __call__(self) -> nx.Graph:
         gnp_fun = nx.erdos_renyi_graph if self.p > 0.2 else nx.fast_gnp_random_graph
-        i = 0
-        while i < 10:
+        start = time.time()
+        while True:
             network = gnp_fun(self.num_agents, self.p)
             if nx.number_of_isolates(network) == 0:
                 return network
-            i += 1
-        raise RuntimeError("Could not generate a connected graph.")
+
+            if time.time() - start > self.max_sample_time:
+                raise RuntimeError(
+                    "Timeout. Could not generate a graph without isolated vertices."
+                )
 
     def __repr__(self) -> str:
         return f"Erdos-Renyi random graph with p={self.p} on {self.num_agents} nodes"
@@ -122,17 +133,26 @@ class WattsStrogatzGenerator:
 
 
 class StochasticBlockGenerator:
-    def __init__(self, num_agents: int, p_matrix: np.ndarray):
+    def __init__(
+        self, num_agents: int, p_matrix: np.ndarray, max_sample_time: float = 10
+    ):
         """
         Creates n stochastic blocks, block i is randomly connected to block j with edge density p_matrix[i, j].
+
+        The random graph may contain isolated vertices, which is not allowed.
+        In that case, the Generator samples until a valid network is found,
+        or until max_sample_time seconds pass, in which case a RuntimeError is raised.
 
         Parameters
         ----------
         num_agents : int
         p_matrix : np.ndarray
             (n x n) matrix of edge probabilities.
+        max_sample_time : float, optional
+            In seconds.
         """
         self.p_matrix = p_matrix
+        self.max_sample_time = max_sample_time
 
         self.num_blocks = p_matrix.shape[0]
         self.block_size = int(num_agents / self.num_blocks)
@@ -157,14 +177,17 @@ class StochasticBlockGenerator:
         return adj_matrix
 
     def __call__(self) -> nx.Graph:
-        i = 0
-        while i < 10:
+        start = time.time()
+        while True:
             adj_mat = self._sample_adj_matrix()
             network = nx.from_numpy_array(adj_mat)
             if nx.number_of_isolates(network) == 0:
                 return network
-            i += 1
-        raise RuntimeError("Could not generate a connected graph.")
+
+            if time.time() - start > self.max_sample_time:
+                raise RuntimeError(
+                    "Timeout. Could not generate a graph without isolated vertices."
+                )
 
     def __repr__(self) -> str:
         return f"stochastic block model with {self.num_blocks} blocks and {self.num_agents} nodes."
@@ -214,7 +237,13 @@ class GridGenerator:
 
 
 class BinomialWattsStrogatzGenerator:
-    def __init__(self, num_agents: int, num_neighbors: int, p_rewire: float):
+    def __init__(
+        self,
+        num_agents: int,
+        num_neighbors: int,
+        p_rewire: float,
+        max_sample_time: float = 10,
+    ):
         """
         Creates a ring where each node is connected to the num_neighbors nearest neighbors.
         (num_neighbors needs to be even!)
@@ -223,15 +252,22 @@ class BinomialWattsStrogatzGenerator:
         that in expectation the resulting graph has the same number of edges again.
         For p=1, this yields the binomial Erdös-Renyi graph G(N, K/N).
 
+        The random graph may contain isolated vertices, which is not allowed.
+        In that case, the Generator samples until a valid network is found,
+        or until max_sample_time seconds pass, in which case a RuntimeError is raised.
+
         Parameters
         ----------
         num_agents : int
         num_neighbors : int
         p_rewire : float
+        max_sample_time : float, optional
+            In seconds.
         """
         self.num_agents = num_agents
         self.num_neighbors = num_neighbors
         self.p_rewire = p_rewire
+        self.max_sample_time = max_sample_time
 
         self.p_insert = (
             p_rewire * num_neighbors / (num_agents - 1 - (1 - p_rewire) * num_neighbors)
@@ -254,13 +290,16 @@ class BinomialWattsStrogatzGenerator:
         return network
 
     def __call__(self) -> nx.Graph:
-        i = 0
-        while i < 10:
+        start = time.time()
+        while True:
             network = self._sample_network()
             if nx.number_of_isolates(network) == 0:
                 return network
-            i += 1
-        raise RuntimeError("Could not generate a connected graph.")
+
+            if time.time() - start > self.max_sample_time:
+                raise RuntimeError(
+                    "Timeout. Could not generate a graph without isolated vertices."
+                )
 
     def __repr__(self) -> str:
         return f"Binomial Watts-Strogatz graph on {self.num_agents} nodes with p_rewire={self.p_rewire}"
