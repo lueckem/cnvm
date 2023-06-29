@@ -34,7 +34,7 @@ class ErdosRenyiGenerator:
         i = 0
         while i < 10:
             network = gnp_fun(self.num_agents, self.p)
-            if nx.is_connected(network):
+            if nx.number_of_isolates(network) == 0:
                 return network
             i += 1
         raise RuntimeError("Could not generate a connected graph.")
@@ -161,7 +161,7 @@ class StochasticBlockGenerator:
         while i < 10:
             adj_mat = self._sample_adj_matrix()
             network = nx.from_numpy_array(adj_mat)
-            if nx.is_connected(network):
+            if nx.number_of_isolates(network) == 0:
                 return network
             i += 1
         raise RuntimeError("Could not generate a connected graph.")
@@ -257,7 +257,7 @@ class BinomialWattsStrogatzGenerator:
         i = 0
         while i < 10:
             network = self._sample_network()
-            if nx.is_connected(network):
+            if nx.number_of_isolates(network) == 0:
                 return network
             i += 1
         raise RuntimeError("Could not generate a connected graph.")
