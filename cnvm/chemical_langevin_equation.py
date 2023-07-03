@@ -3,7 +3,7 @@ import numpy as np
 from .parameters import Parameters
 
 
-def sample_traj_cle(
+def sample_cle(
         params: Parameters,
         initial_state: np.ndarray,
         max_time: float,
@@ -118,7 +118,7 @@ def _drift_and_diffusion(c, r, r_tilde, num_agents):
             state_change[n] = 1
             prop = c[m] * (r[m, n] * c[n] + r_tilde[m, n])
             drift += prop * state_change
-            diffusion[i] = (prop / num_agents) ** 0.5 * state_change
+            diffusion[:, i] = (prop / num_agents) ** 0.5 * state_change
             i += 1
 
     return drift, diffusion
