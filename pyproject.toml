@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cnvm"
-version = "0.1.1"
+version = "0.2.0"
 description = "Continuous-time Noisy Voter Model (CNVM) of social dynamics."
 license = "GPL-3.0-or-later"
 authors = ["Marvin Lücke"]
