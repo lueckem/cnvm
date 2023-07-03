@@ -4,12 +4,12 @@ from .parameters import Parameters
 
 
 def sample_cle(
-        params: Parameters,
-        initial_state: np.ndarray,
-        max_time: float,
-        num_time_steps: int,
-        num_samples: int,
-        saving_offset: int = 1
+    params: Parameters,
+    initial_state: np.ndarray,
+    max_time: float,
+    num_time_steps: int,
+    num_samples: int,
+    saving_offset: int = 1,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Sample Chemical Langevin Equation (CLE) approximation for the CNVM.
@@ -42,20 +42,20 @@ def sample_cle(
         params.r,
         params.r_tilde,
         num_samples,
-        saving_offset
+        saving_offset,
     )
 
 
 @numba.njit(parallel=True)
 def _numba_sample_cle(
-        initial_state: np.ndarray,
-        max_time: float,
-        num_time_steps: int,
-        num_agents: int,
-        r: np.ndarray,
-        r_tilde: np.ndarray,
-        num_samples: int,
-        saving_offset: int
+    initial_state: np.ndarray,
+    max_time: float,
+    num_time_steps: int,
+    num_agents: int,
+    r: np.ndarray,
+    r_tilde: np.ndarray,
+    num_samples: int,
+    saving_offset: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     dim = initial_state.shape[0]
     t = np.linspace(0, max_time, num_time_steps + 1)
@@ -64,12 +64,7 @@ def _numba_sample_cle(
 
     for i in numba.prange(num_samples):
         x = _numba_euler_maruyama(
-            initial_state,
-            max_time,
-            num_time_steps,
-            num_agents,
-            r,
-            r_tilde
+            initial_state, max_time, num_time_steps, num_agents, r, r_tilde
         )
         x_out[i] = x[::saving_offset, :]
 
@@ -78,20 +73,22 @@ def _numba_sample_cle(
 
 @numba.njit()
 def _numba_euler_maruyama(
-        initial_state: np.ndarray,
-        max_time: float,
-        num_time_steps: int,
-        num_agents: int,
-        r: np.ndarray,
-        r_tilde: np.ndarray
+    initial_state: np.ndarray,
+    max_time: float,
+    num_time_steps: int,
+    num_agents: int,
+    r: np.ndarray,
+    r_tilde: np.ndarray,
 ) -> np.ndarray:
     dim = initial_state.shape[0]
     x = np.zeros((num_time_steps + 1, dim))
 
     x[0] = np.copy(initial_state)
     delta_t = max_time / num_time_steps
-    dim_diffusion = dim ** 2 - dim
-    wiener_increments = np.random.normal(0, delta_t ** 0.5, (num_time_steps, dim_diffusion))
+    dim_diffusion = dim**2 - dim
+    wiener_increments = np.random.normal(
+        0, delta_t**0.5, (num_time_steps, dim_diffusion)
+    )
 
     for i in range(num_time_steps):
         drift, diffusion = _drift_and_diffusion(x[i], r, r_tilde, num_agents)
@@ -105,7 +102,7 @@ def _numba_euler_maruyama(
 def _drift_and_diffusion(c, r, r_tilde, num_agents):
     num_o = c.shape[0]
     drift = np.zeros(num_o)
-    diffusion = np.zeros((num_o, num_o ** 2 - num_o))
+    diffusion = np.zeros((num_o, num_o**2 - num_o))
 
     i = 0
     for m in range(num_o):

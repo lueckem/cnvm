@@ -20,7 +20,7 @@ class TestCLE(TestCase):
 
         t_max = 100
         num_time_steps = 10000
-        initial_state = np.array([0.9, 0.1, 0.])
+        initial_state = np.array([0.9, 0.1, 0.0])
         num_samples = 5
 
         t, c = sample_cle(params, initial_state, t_max, num_time_steps, num_samples)
