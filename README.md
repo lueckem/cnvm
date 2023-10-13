@@ -1,4 +1,6 @@
-[![build](https://github.com/lueckem/cnvm/actions/workflows/build.yml/badge.svg)](https://github.com/lueckem/cnvm/actions/workflows/build.yml)
+# DEPRECATED! The CNVM package was moved into [SPoNet](https://github.com/lueckem/SPoNet) (Spreading Processes on Networks)
+
+#
 
 # Continuous-time noisy voter model (CNVM)
 This package provides an efficient implementation of the CNVM, which is a dynamical system consisting a network of interacting *agents*.
