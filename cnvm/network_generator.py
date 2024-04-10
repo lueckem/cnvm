@@ -18,7 +18,13 @@ class NetworkGenerator(Protocol):
 
 
 class ErdosRenyiGenerator:
-    def __init__(self, num_agents: int, p: float, max_sample_time: float = 10):
+    def __init__(
+        self,
+        num_agents: int,
+        p: float,
+        max_sample_time: float = 10,
+        force_no_isolates: bool = False,
+    ):
         """
         Generate Erdös-Renyi (binomial) random graphs.
 
@@ -32,10 +38,14 @@ class ErdosRenyiGenerator:
         p : float
         max_sample_time : float, optional
             In seconds.
+        force_no_isolates : bool, optional
+            If set to true, one random edge will be added to each isolated vertex,
+            resulting in a network without isolates.
         """
         self.num_agents = num_agents
         self.p = p
         self.max_sample_time = max_sample_time
+        self.force_no_isolates = force_no_isolates
 
     def __call__(self) -> nx.Graph:
         gnp_fun = nx.erdos_renyi_graph if self.p > 0.2 else nx.fast_gnp_random_graph
@@ -43,6 +53,10 @@ class ErdosRenyiGenerator:
         while True:
             network = gnp_fun(self.num_agents, self.p)
             if nx.number_of_isolates(network) == 0:
+                return network
+
+            if self.force_no_isolates:
+                _unisolate_vertices(network)
                 return network
 
             if time.time() - start > self.max_sample_time:
@@ -306,3 +320,19 @@ class BinomialWattsStrogatzGenerator:
 
     def abrv(self):
         return f"binWS_k{self.num_neighbors}_p{int(self.p_rewire * 100)}_N{self.num_agents}"
+
+
+def _unisolate_vertices(network: nx.Graph) -> None:
+    """
+    Make isolated vertices un-isolated by adding one edge to a random node.
+
+    Parameters
+    ----------
+    network : nx.Graph
+    """
+    for i in nx.isolates(network):
+        j = i
+        while j == i:
+            j = np.random.randint(0, network.number_of_nodes())
+        # print(i, j)
+        network.add_edge(i, j)
